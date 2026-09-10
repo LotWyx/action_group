@@ -18,6 +18,18 @@ class Settings(BaseSettings):
     max_reminder_days_ahead: int = 3
     max_reminder_check_interval_hours: int = 24
 
+    # GigaChat (Sber) — free-tier Russian LLM used for the employee/department
+    # AI-analysis feature. Optional: endpoints report a clear error when no
+    # key is configured, nothing else in the app depends on it.
+    gigachat_auth_key: str = ""
+    gigachat_scope: str = "GIGACHAT_API_PERS"
+    gigachat_model: str = "GigaChat"
+    # Sber's endpoints use a Russian national root CA ("Минцифры России") that
+    # most systems don't trust out of the box; verification is off by default
+    # so the integration works without extra setup. Set to true once that CA
+    # is installed in the container's trust store.
+    gigachat_verify_ssl: bool = False
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

@@ -1,25 +1,37 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMeetingsStore } from '@/stores/meetings'
+import { useScheduledMeetingsStore } from '@/stores/scheduledMeetings'
 import { useUsersStore } from '@/stores/users'
 import { useSkillsStore } from '@/stores/skills'
 import { renderMarkdown } from '@/composables/useMarkdown'
+import { useConfirm } from '@/composables/useConfirm'
+import { useToast } from '@/composables/useToast'
 import type { User } from '@/types'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
+import BaseModal from '@/components/ui/BaseModal.vue'
+import BaseInput from '@/components/ui/BaseInput.vue'
+import BaseTextarea from '@/components/ui/BaseTextarea.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
-import { Check, ChevronDown, ChevronUp, Link2, Paperclip } from '@lucide/vue'
+import { Calendar, Check, ChevronDown, ChevronUp, Link2, Paperclip, X } from '@lucide/vue'
 
 const props = defineProps<{ employee: User; canManage: boolean }>()
 
 const meetings = useMeetingsStore()
+const scheduled = useScheduledMeetingsStore()
 const users = useUsersStore()
 const skills = useSkillsStore()
 const router = useRouter()
+const { confirm } = useConfirm()
+const toast = useToast()
+
+onMounted(() => scheduled.fetchAll())
 
 const list = computed(() => meetings.forUser(props.employee.id))
+const upcoming = computed(() => scheduled.forUser(props.employee.id))
 const expanded = ref<Set<string>>(new Set())
 
 function toggle(id: string) {
@@ -32,13 +44,65 @@ function toggle(id: string) {
 function goCreate() {
   router.push({ name: 'meeting-new', params: { id: props.employee.id } })
 }
+
+const showScheduleModal = ref(false)
+const scheduleDate = ref(new Date().toISOString().slice(0, 10))
+const scheduleNote = ref('')
+const scheduling = ref(false)
+
+function openScheduleModal() {
+  scheduleDate.value = new Date().toISOString().slice(0, 10)
+  scheduleNote.value = ''
+  showScheduleModal.value = true
+}
+
+async function submitSchedule() {
+  scheduling.value = true
+  try {
+    await scheduled.create({ employeeId: props.employee.id, scheduledDate: scheduleDate.value, note: scheduleNote.value.trim() })
+    toast.success('Встреча запланирована')
+    showScheduleModal.value = false
+  } catch (e) {
+    toast.error(e instanceof Error ? e.message : 'Не удалось запланировать встречу')
+  } finally {
+    scheduling.value = false
+  }
+}
+
+async function cancelScheduled(id: string) {
+  const ok = await confirm('Отменить запланированную встречу?', { danger: true, confirmLabel: 'Отменить' })
+  if (!ok) return
+  await scheduled.remove(id)
+  toast.success('Встреча отменена')
+}
 </script>
 
 <template>
   <div class="stack gap-md">
-    <div class="row" style="justify-content: flex-end">
+    <div class="row gap-sm" style="justify-content: flex-end">
+      <BaseButton v-if="canManage" size="sm" variant="secondary" @click="openScheduleModal">
+        <Calendar :size="14" /> Запланировать
+      </BaseButton>
       <BaseButton v-if="canManage" size="sm" @click="goCreate">+ Провести встречу (PR)</BaseButton>
     </div>
+
+    <BaseCard v-if="upcoming.length" :padded="false">
+      <div class="section-header">
+        <p class="text-sm text-muted" style="font-weight: 700">Предстоящие встречи</p>
+      </div>
+      <ul class="upcoming-list">
+        <li v-for="s in upcoming" :key="s.id">
+          <div class="upcoming-item__body">
+            <p class="upcoming-item__date">{{ s.scheduledDate }}</p>
+            <p v-if="s.note" class="text-sm text-muted">{{ s.note }}</p>
+            <p class="text-sm text-faint">запланировал(а) {{ users.fullName(s.conductedById) }}</p>
+          </div>
+          <button v-if="canManage" type="button" class="upcoming-item__cancel" title="Отменить" @click="cancelScheduled(s.id)">
+            <X :size="14" />
+          </button>
+        </li>
+      </ul>
+    </BaseCard>
 
     <EmptyState v-if="!list.length" title="Встреч пока не было" description="Здесь появится история протоколов PR-встреч" />
 
@@ -100,6 +164,17 @@ function goCreate() {
         </div>
       </div>
     </BaseCard>
+
+    <BaseModal v-if="showScheduleModal" title="Запланировать встречу" @close="showScheduleModal = false">
+      <div class="stack gap-md">
+        <BaseInput v-model="scheduleDate" type="date" label="Дата встречи" required />
+        <BaseTextarea v-model="scheduleNote" label="Заметка (необязательно)" :rows="3" placeholder="О чём поговорить" />
+      </div>
+      <template #footer>
+        <BaseButton variant="secondary" @click="showScheduleModal = false">Отмена</BaseButton>
+        <BaseButton :loading="scheduling" @click="submitSchedule">Запланировать</BaseButton>
+      </template>
+    </BaseModal>
   </div>
 </template>
 
@@ -167,5 +242,54 @@ function goCreate() {
   gap: 6px;
   text-decoration: none;
   font-size: 13.5px;
+}
+
+.section-header {
+  padding: 14px 16px 0;
+}
+
+.upcoming-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+}
+
+.upcoming-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: var(--radius-md);
+}
+
+.upcoming-list li:hover {
+  background: var(--color-surface-alt);
+}
+
+.upcoming-item__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.upcoming-item__date {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.upcoming-item__cancel {
+  border: none;
+  background: var(--color-surface-alt);
+  color: var(--color-text-faint);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.upcoming-item__cancel:hover {
+  color: var(--color-danger);
 }
 </style>

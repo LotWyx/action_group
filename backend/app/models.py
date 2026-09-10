@@ -97,6 +97,20 @@ class SkillMark(Base):
     comment: Mapped[str] = mapped_column(Text, default="")
 
 
+class ScheduledMeeting(Base):
+    """A future PR-meeting a manager plans for a subordinate — distinct from
+    Meeting, which is the protocol written up after the meeting happened."""
+
+    __tablename__ = "scheduled_meetings"
+
+    id: Mapped[str] = mapped_column(primary_key=True)
+    employee_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    conducted_by_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
+    scheduled_date: Mapped[datetime.date] = mapped_column(Date)
+    note: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime.date] = mapped_column(Date, default=datetime.date.today)
+
+
 class ProblemFlag(Base):
     __tablename__ = "problem_flags"
 

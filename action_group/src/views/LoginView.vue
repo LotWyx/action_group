@@ -15,18 +15,6 @@ const password = ref('')
 const error = ref('')
 const submitting = ref(false)
 
-const demoAccounts = [
-  { login: 'admin', password: 'admin', label: 'Администратор' },
-  { login: 'cto', password: 'cto123', label: 'CTO (руководитель и подчинённый одновременно)' },
-  { login: 'back.lead', password: 'lead123', label: 'Тимлид Backend' },
-  { login: 'a.volkov', password: 'pass123', label: 'Разработчик без подчинённых' },
-]
-
-function fillDemo(acc: (typeof demoAccounts)[number]) {
-  login.value = acc.login
-  password.value = acc.password
-}
-
 async function submit() {
   error.value = ''
   submitting.value = true
@@ -50,7 +38,7 @@ async function submit() {
       <p class="login__subtitle">Система мониторинга развития технических навыков команды</p>
 
       <div class="stack gap-md">
-        <BaseInput v-model="login" label="Логин" placeholder="например, admin" required autocomplete="username" />
+        <BaseInput v-model="login" label="Логин" placeholder="Введите логин" required autocomplete="username" />
         <BaseInput
           v-model="password"
           label="Пароль"
@@ -64,15 +52,6 @@ async function submit() {
       <p v-if="error" class="login__error">{{ error }}</p>
 
       <BaseButton type="submit" block :loading="submitting">Войти</BaseButton>
-
-      <div class="login__demo">
-        <p class="text-sm text-muted">Демо-доступ (нажмите, чтобы подставить):</p>
-        <div class="login__demo-list">
-          <button v-for="acc in demoAccounts" :key="acc.login" type="button" class="login__demo-item" @click="fillDemo(acc)">
-            <strong>{{ acc.login }}</strong> — {{ acc.label }}
-          </button>
-        </div>
-      </div>
     </form>
   </div>
 </template>
@@ -132,34 +111,5 @@ async function submit() {
 
 .login :deep(.btn) {
   margin-top: 20px;
-}
-
-.login__demo {
-  margin-top: 24px;
-  padding-top: 18px;
-  border-top: 1px dashed var(--color-border);
-}
-
-.login__demo-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 8px;
-}
-
-.login__demo-item {
-  text-align: left;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface-alt);
-  border-radius: var(--radius-sm);
-  padding: 8px 10px;
-  font-size: 12.5px;
-  cursor: pointer;
-  color: var(--color-text-muted);
-}
-
-.login__demo-item:hover {
-  border-color: var(--color-primary);
-  color: var(--color-text);
 }
 </style>

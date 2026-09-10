@@ -9,13 +9,21 @@ import BaseBadge from '@/components/ui/BaseBadge.vue'
 import DonutProgress from '@/components/charts/DonutProgress.vue'
 import TrendLine from '@/components/charts/TrendLine.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
-import { TrendingUp } from '@lucide/vue'
+import AchievementBadges from '@/components/employees/AchievementBadges.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
+import AiAnalysisModal from '@/components/ui/AiAnalysisModal.vue'
+import { Sparkles, TrendingUp } from '@lucide/vue'
+import { useAiAnalysis } from '@/composables/useAiAnalysis'
 
 const props = defineProps<{ employee: User }>()
 
 const plans = usePlansStore()
 const meetings = useMeetingsStore()
 const skills = useSkillsStore()
+
+const { show: aiShow, loading: aiLoading, error: aiError, text: aiText, open: openAiAnalysis } = useAiAnalysis(
+  `/ai/employees/${props.employee.id}`,
+)
 
 const items = computed(() => plans.forUser(props.employee.id))
 const confirmedCount = computed(() => items.value.filter((p) => p.status === 'confirmed').length)
@@ -34,6 +42,12 @@ const trendPoints = computed(() => {
 
 <template>
   <div class="stack gap-lg">
+    <div class="row" style="justify-content: flex-end">
+      <BaseButton size="sm" variant="secondary" @click="openAiAnalysis">
+        <Sparkles :size="14" /> AI-анализ
+      </BaseButton>
+    </div>
+
     <div class="grid" style="grid-template-columns: auto 1fr; align-items: center; gap: 24px">
       <BaseCard class="row" style="justify-content: center">
         <DonutProgress :value="progress" />
@@ -47,6 +61,8 @@ const trendPoints = computed(() => {
         </div>
       </BaseCard>
     </div>
+
+    <AchievementBadges :employee="employee" />
 
     <BaseCard>
       <p class="text-sm text-muted" style="margin-bottom: 10px">Динамика зачтённых навыков (по встречам)</p>
@@ -63,6 +79,8 @@ const trendPoints = computed(() => {
         </li>
       </ul>
     </BaseCard>
+
+    <AiAnalysisModal v-if="aiShow" :loading="aiLoading" :error="aiError" :text="aiText" @close="aiShow = false" />
   </div>
 </template>
 

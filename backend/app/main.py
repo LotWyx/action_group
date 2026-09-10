@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .database import Base, SessionLocal, engine
-from .routers import auth, departments, directions, meetings, plans, skills, users
+from .routers import ai, auth, departments, directions, export, meetings, plans, scheduled_meetings, skills, users
 from .scheduler import start_scheduler
 from .seed import seed_if_empty
 
@@ -44,6 +44,9 @@ app.include_router(directions.router)
 app.include_router(skills.router)
 app.include_router(plans.router)
 app.include_router(meetings.router)
+app.include_router(scheduled_meetings.router)
+app.include_router(export.router)
+app.include_router(ai.router)
 
 
 @app.get("/health")

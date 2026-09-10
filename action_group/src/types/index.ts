@@ -1,7 +1,6 @@
 // Domain types for the Performance Review system.
-// Kept backend-agnostic on purpose: the mock API layer (src/api) implements
-// these same shapes today and can be swapped for real FastAPI responses later
-// without touching stores/components.
+// Field-for-field mirror of the FastAPI backend's Pydantic response schemas
+// (see backend/app/schemas.py, which camelCase-aliases everything to match).
 
 /**
  * Directions (BACK/FRONT/QA and whatever an admin adds later) are data, not a
@@ -85,6 +84,15 @@ export interface Meeting {
   attachments: Attachment[]
   skillMarks: SkillMark[]
   problems: ProblemFlag[]
+  createdAt: string
+}
+
+export interface ScheduledMeeting {
+  id: string
+  employeeId: string
+  conductedById: string
+  scheduledDate: string // ISO date
+  note: string
   createdAt: string
 }
 

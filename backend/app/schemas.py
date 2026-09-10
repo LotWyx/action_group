@@ -218,6 +218,31 @@ class ProblemResolveUpdate(CamelModel):
     resolved: bool
 
 
+# --- Scheduled meetings (timeline / planning bonus feature) -------------------
+
+
+class ScheduledMeetingOut(CamelModel):
+    id: str
+    employee_id: str
+    conducted_by_id: str
+    scheduled_date: datetime.date
+    note: str
+    created_at: datetime.date
+
+
+class ScheduledMeetingCreate(CamelModel):
+    employee_id: str
+    scheduled_date: datetime.date
+    note: str = ""
+
+
+# --- AI analysis (GigaChat) ----------------------------------------------------
+
+
+class AiAnalysisOut(BaseModel):
+    text: str
+
+
 # --- Auth -----------------------------------------------------------------------
 
 

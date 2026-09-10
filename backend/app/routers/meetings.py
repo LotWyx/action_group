@@ -104,6 +104,19 @@ async def create_meeting(
                 )
             )
 
+    # A protocol now exists for this employee up to this date, so any
+    # scheduled ("upcoming") meeting due by then is stale — drop it from the
+    # timeline instead of leaving a phantom "planned" entry next to the
+    # protocol that just replaced it.
+    stale = await db.execute(
+        select(models.ScheduledMeeting).where(
+            models.ScheduledMeeting.employee_id == payload.employee_id,
+            models.ScheduledMeeting.scheduled_date <= payload.date,
+        )
+    )
+    for s in stale.scalars().all():
+        await db.delete(s)
+
     await db.commit()
     result = await db.execute(select(models.Meeting).options(*_with_relations()).where(models.Meeting.id == meeting.id))
     saved = result.scalar_one()

@@ -14,7 +14,8 @@ import BaseBadge from '@/components/ui/BaseBadge.vue'
 import BaseTabs from '@/components/ui/BaseTabs.vue'
 import UserAvatar from '@/components/ui/UserAvatar.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
-import { Lock } from '@lucide/vue'
+import { FileSpreadsheet, FileText, Lock } from '@lucide/vue'
+import { useFileDownload } from '@/composables/useFileDownload'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import PlanTab from '@/components/employees/PlanTab.vue'
 import MeetingsTab from '@/components/employees/MeetingsTab.vue'
@@ -68,6 +69,12 @@ const problemsCount = computed(() =>
 const validTabs = ['plan', 'meetings', 'problems', 'analytics']
 const initialTab = typeof route.query.tab === 'string' && validTabs.includes(route.query.tab) ? route.query.tab : 'plan'
 const activeTab = ref(initialTab)
+
+const { download } = useFileDownload()
+function exportReport(format: 'xlsx' | 'pdf') {
+  if (!employee.value) return
+  download(`/export/employees/${employee.value.id}.${format}`, `report_${employee.value.login}.${format}`)
+}
 </script>
 
 <template>
@@ -94,6 +101,14 @@ const activeTab = ref(initialTab)
           <BaseBadge :variant="directionBadgeVariant(employee.directionId)">{{ directions.name(employee.directionId) }}</BaseBadge>
           <BaseBadge v-if="employee.isAdmin" variant="info">Администратор</BaseBadge>
           <BaseBadge v-if="problemsCount" variant="danger">{{ problemsCount }} открытых проблем</BaseBadge>
+        </div>
+        <div class="row gap-xs">
+          <button type="button" class="export-btn" title="Экспорт в Excel" @click="exportReport('xlsx')">
+            <FileSpreadsheet :size="16" />
+          </button>
+          <button type="button" class="export-btn" title="Экспорт в PDF" @click="exportReport('pdf')">
+            <FileText :size="16" />
+          </button>
         </div>
       </div>
     </BaseCard>
@@ -132,5 +147,23 @@ const activeTab = ref(initialTab)
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.export-btn {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.export-btn:hover {
+  background: var(--color-surface-alt);
+  color: var(--color-text);
 }
 </style>
