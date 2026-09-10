@@ -12,7 +12,7 @@ import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import UserAvatar from '@/components/ui/UserAvatar.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
-import MaxNotificationsCard from '@/components/dashboard/MaxNotificationsCard.vue'
+import VkNotificationsCard from '@/components/dashboard/VkNotificationsCard.vue'
 import { ArrowRight } from '@lucide/vue'
 
 const auth = useAuthStore()
@@ -128,7 +128,7 @@ function userName(id: string) {
       </ul>
     </BaseCard>
 
-    <MaxNotificationsCard />
+    <VkNotificationsCard />
   </div>
 </template>
 

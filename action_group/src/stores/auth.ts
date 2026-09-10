@@ -42,8 +42,8 @@ export const useAuthStore = defineStore('auth', () => {
     if (currentUser.value?.id === user.id) currentUser.value = user
   }
 
-  async function updateMyNotifications(maxChatId: string | null) {
-    const user = await usersService.updateMyNotifications(maxChatId)
+  async function updateMyNotifications(vkUserId: string | null) {
+    const user = await usersService.updateMyNotifications(vkUserId)
     currentUser.value = user
     return user
   }

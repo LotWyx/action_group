@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .. import max_notify, models, schemas
+from .. import models, schemas, vk_notify
 from ..database import get_db
 from ..deps import get_current_user, require_admin
 from ..errors import translate_integrity_error
@@ -28,7 +28,7 @@ async def update_my_notifications(
     db: AsyncSession = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ):
-    user.max_chat_id = payload.max_chat_id or None
+    user.vk_user_id = payload.vk_user_id or None
     await db.commit()
     await db.refresh(user)
     return user
@@ -36,15 +36,15 @@ async def update_my_notifications(
 
 @router.post("/me/notifications/test")
 async def send_test_notification(user: models.User = Depends(get_current_user)):
-    if not max_notify.is_configured():
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "MAX_BOT_TOKEN не настроен на сервере")
-    if not user.max_chat_id:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Сначала укажите chat id в настройках уведомлений")
-    ok = await max_notify.send_message(
-        user.max_chat_id, f"Привет, {user.full_name.split()[0]}! Это тестовое уведомление из Performance Review."
+    if not vk_notify.is_configured():
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "VK_BOT_TOKEN не настроен на сервере")
+    if not user.vk_user_id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Сначала укажите свой ID пользователя VK в настройках уведомлений")
+    ok = await vk_notify.send_message(
+        user.vk_user_id, f"Привет, {user.full_name.split()[0]}! Это тестовое уведомление из Performance Review."
     )
     if not ok:
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Не удалось отправить сообщение в MAX")
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Не удалось отправить сообщение в ВКонтакте")
     return {"sent": True}
 
 

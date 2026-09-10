@@ -35,7 +35,7 @@ class User(Base):
     department_id: Mapped[str | None] = mapped_column(ForeignKey("departments.id", ondelete="SET NULL"))
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     avatar_color: Mapped[str]
-    max_chat_id: Mapped[str | None] = mapped_column(default=None)
+    vk_user_id: Mapped[str | None] = mapped_column(default=None)
     created_at: Mapped[datetime.date] = mapped_column(Date)
 
 

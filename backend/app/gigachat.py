@@ -4,7 +4,7 @@ for individuals) used for the employee/department AI-analysis feature.
 
 Configure GIGACHAT_AUTH_KEY (the base64 "Authorization key" from the GigaChat
 project console) to enable it. Without it, every call here is a no-op, same
-pattern as app/max_notify.py.
+pattern as app/vk_notify.py.
 
 OAuth: POST https://ngw.devices.sberbank.ru:9443/api/v2/oauth
   headers: Authorization: Basic <auth_key>, RqUID: <uuid4>

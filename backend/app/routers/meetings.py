@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from .. import max_notify, models, permissions, schemas
+from .. import models, permissions, schemas, vk_notify
 from ..database import get_db
 from ..deps import get_current_user
 from ..ids import new_id
@@ -122,7 +122,7 @@ async def create_meeting(
     saved = result.scalar_one()
 
     employee = await db.get(models.User, payload.employee_id)
-    if employee and employee.max_chat_id:
+    if employee and employee.vk_user_id:
         confirmed_count = sum(1 for m in payload.skill_marks if m.confirmed)
         problems_count = len(payload.problems)
         text = (
@@ -131,9 +131,9 @@ async def create_meeting(
             + (f" Отмечено проблем: {problems_count}." if problems_count else "")
         )
         try:
-            await max_notify.send_message(employee.max_chat_id, text)
+            await vk_notify.send_message(employee.vk_user_id, text)
         except Exception:  # best-effort notification must never break the request
-            logger.exception("Failed to send MAX notification for meeting %s", meeting.id)
+            logger.exception("Failed to send VK notification for meeting %s", meeting.id)
 
     return saved
 

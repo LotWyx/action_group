@@ -10,14 +10,14 @@ import { MessageCircle } from '@lucide/vue'
 const auth = useAuthStore()
 const toast = useToast()
 
-const chatId = ref(auth.currentUser?.maxChatId ?? '')
+const vkUserId = ref(auth.currentUser?.vkUserId ?? '')
 const saving = ref(false)
 const testing = ref(false)
 
 async function save() {
   saving.value = true
   try {
-    await auth.updateMyNotifications(chatId.value.trim() || null)
+    await auth.updateMyNotifications(vkUserId.value.trim() || null)
     toast.success('Настройки уведомлений сохранены')
   } catch (e) {
     toast.error(e instanceof Error ? e.message : 'Не удалось сохранить')
@@ -30,7 +30,7 @@ async function sendTest() {
   testing.value = true
   try {
     await auth.sendTestNotification()
-    toast.success('Тестовое сообщение отправлено в MAX')
+    toast.success('Тестовое сообщение отправлено ВКонтакте')
   } catch (e) {
     toast.error(e instanceof Error ? e.message : 'Не удалось отправить сообщение')
   } finally {
@@ -43,18 +43,19 @@ async function sendTest() {
   <BaseCard>
     <div class="row gap-sm" style="margin-bottom: 10px">
       <MessageCircle :size="18" class="text-muted" />
-      <p style="font-weight: 700">Уведомления в MAX</p>
+      <p style="font-weight: 700">Уведомления ВКонтакте</p>
     </div>
     <p class="text-sm text-muted" style="margin-bottom: 12px">
-      Укажите chat id бота MAX — напомним о приближающихся плановых датах подтверждения навыков и пришлём уведомление
-      после каждой PR-встречи.
+      Укажите свой ID пользователя VK — напомним о приближающихся плановых датах подтверждения навыков и пришлём
+      уведомление после каждой PR-встречи. Чтобы сообщения доходили, один раз напишите что-нибудь сообществу бота
+      ВКонтакте — так VK разрешит ему писать вам первым.
     </p>
     <div class="row gap-sm wrap">
       <div style="flex: 1; min-width: 160px">
-        <BaseInput v-model="chatId" placeholder="chat id в MAX" />
+        <BaseInput v-model="vkUserId" placeholder="ID пользователя VK" />
       </div>
       <BaseButton size="sm" variant="secondary" :loading="saving" @click="save">Сохранить</BaseButton>
-      <BaseButton size="sm" variant="ghost" :loading="testing" :disabled="!auth.currentUser?.maxChatId" @click="sendTest">
+      <BaseButton size="sm" variant="ghost" :loading="testing" :disabled="!auth.currentUser?.vkUserId" @click="sendTest">
         Тест
       </BaseButton>
     </div>

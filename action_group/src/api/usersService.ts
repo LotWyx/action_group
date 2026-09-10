@@ -35,8 +35,8 @@ export const usersService = {
     await http.delete(`/users/${id}`)
   },
 
-  async updateMyNotifications(maxChatId: string | null): Promise<User> {
-    const { data } = await http.patch<User>('/users/me/notifications', { maxChatId })
+  async updateMyNotifications(vkUserId: string | null): Promise<User> {
+    const { data } = await http.patch<User>('/users/me/notifications', { vkUserId })
     return data
   },
 

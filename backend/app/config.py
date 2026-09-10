@@ -11,12 +11,12 @@ class Settings(BaseSettings):
 
     cors_origins: str = "http://localhost:5173,http://localhost:8080"
 
-    # MAX messenger bot integration (https://dev.max.ru). Optional: notifications
-    # are silently skipped when no token is configured.
-    max_bot_token: str = ""
-    max_api_base_url: str = "https://platform-api2.max.ru"
-    max_reminder_days_ahead: int = 3
-    max_reminder_check_interval_hours: int = 24
+    # VK community (group) bot integration (https://dev.vk.com/ru/method/messages.send).
+    # Optional: notifications are silently skipped when no token is configured.
+    vk_bot_token: str = ""
+    vk_api_version: str = "5.199"
+    vk_reminder_days_ahead: int = 3
+    vk_reminder_check_interval_hours: int = 24
 
     # GigaChat (Sber) — free-tier Russian LLM used for the employee/department
     # AI-analysis feature. Optional: endpoints report a clear error when no

@@ -28,7 +28,7 @@ export interface User {
   departmentId: string | null
   isAdmin: boolean
   avatarColor: string
-  maxChatId: string | null
+  vkUserId: string | null
   createdAt: string
 }
 

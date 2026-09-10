@@ -62,7 +62,7 @@ class UserOut(CamelModel):
     department_id: str | None
     is_admin: bool
     avatar_color: str
-    max_chat_id: str | None
+    vk_user_id: str | None
     created_at: datetime.date
 
 
@@ -85,7 +85,7 @@ class UserUpdate(CamelModel):
 
 
 class NotificationSettingsUpdate(CamelModel):
-    max_chat_id: str | None = None
+    vk_user_id: str | None = None
 
 
 # --- Skills -------------------------------------------------------------------
@@ -256,5 +256,5 @@ class TokenResponse(CamelModel):
     user: UserOut
 
 
-class MaxTestNotification(BaseModel):
+class VkTestNotification(BaseModel):
     message: str = "Тестовое уведомление из Performance Review"
