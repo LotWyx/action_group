@@ -139,12 +139,119 @@ npm install
 npm run dev   # проксирует /api на localhost:8000, см. vite.config.ts
 ```
 
+## Деплой на сервер (продакшн)
+
+Ниже — вариант «VPS по SSH + свой домен с HTTPS + деплой вручную» (`git pull` +
+`docker compose`), без CI/CD. Предполагается Ubuntu/Debian.
+
+### 1. Подготовка сервера
+
+```sh
+ssh user@your-server
+
+# Docker + Compose plugin
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER && newgrp docker
+
+# nginx (терминирует HTTPS перед контейнерами) + certbot
+sudo apt update && sudo apt install -y nginx certbot python3-certbot-nginx
+
+# файрвол: наружу — только SSH/HTTP/HTTPS
+sudo ufw allow OpenSSH
+sudo ufw allow 'Nginx Full'
+sudo ufw enable
+```
+
+### 2. Код и `.env`
+
+```sh
+git clone https://github.com/LotWyx/action_group.git
+cd action_group
+cp .env.example .env
+nano .env
+```
+
+В `.env` обязательно замените на боевые значения (дефолты годятся только для
+локальной разработки):
+
+- `JWT_SECRET` — длинная случайная строка (`openssl rand -hex 32`).
+- `POSTGRES_PASSWORD` — не `app`.
+- `CORS_ORIGINS=https://ваш-домен.ru` — реальный домен (без слэша на конце);
+  им пользуется только прямой доступ к API в обход nginx-прокси фронтенда,
+  но лучше сразу выставить правильно.
+- `VK_BOT_TOKEN` / `GIGACHAT_AUTH_KEY` — если включаете эти интеграции (см.
+  разделы выше).
+
+### 3. Запуск контейнеров (без публичного порта у backend)
+
+Продакшен-оверлей `docker-compose.prod.yml` убирает публикацию `8000` наружу
+(наружу должен смотреть только nginx на хосте) и биндит фронтенд-контейнер
+только на `127.0.0.1:8080`, а не на все интерфейсы:
+
+```sh
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+docker compose ps   # все три сервиса должны быть healthy/running
+```
+
+### 4. nginx на хосте + HTTPS
+
+Создайте `/etc/nginx/sites-available/action-group`:
+
+```nginx
+server {
+    listen 80;
+    server_name ваш-домен.ru;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+```sh
+sudo ln -s /etc/nginx/sites-available/action-group /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+
+# получить сертификат и настроить редирект на https (certbot сам допишет конфиг)
+sudo certbot --nginx -d ваш-домен.ru
+```
+
+Автопродление certbot ставит сам (systemd-таймер `certbot.timer`), проверить:
+`sudo systemctl status certbot.timer`.
+
+Откройте `https://ваш-домен.ru` — должен открыться логин, `admin`/`admin`
+(или заведите реальных пользователей и удалите демо-аккаунт).
+
+### 5. Обновление после новых коммитов
+
+```sh
+cd action_group
+git pull
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
+Данные Postgres (volume `pgdata`) при этом не трогаются — таблицы не
+пересоздаются (`create_all` не удаляет и не меняет существующие), а сид
+демо-данных срабатывает только на пустой базе.
+
+### 6. Бэкап базы
+
+```sh
+docker compose exec db pg_dump -U app performance_review > backup_$(date +%F).sql
+```
+Положите это в cron, если данные боевые.
+
 ## Структура репозитория
 
 ```
 action_group/     Vue-фронтенд (Dockerfile + nginx.conf — прод-сборка за nginx)
 backend/           FastAPI-бэкенд (Dockerfile)
-docker-compose.yml  db + backend + frontend
+docker-compose.yml  db + backend + frontend (для локальной разработки/демо)
+docker-compose.prod.yml  продакшен-оверлей (см. раздел «Деплой на сервер»)
 .env.example        переменные окружения со значениями по умолчанию
 ```
 
