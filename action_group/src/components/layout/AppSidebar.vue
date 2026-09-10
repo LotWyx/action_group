@@ -9,14 +9,14 @@ const auth = useAuthStore()
   <aside class="sidebar">
     <nav class="sidebar__nav">
       <router-link v-for="item in primaryNav" :key="item.to" :to="item.to" class="sidebar__item" active-class="sidebar__item--active">
-        <span class="sidebar__icon">{{ item.icon }}</span>
+        <component :is="item.icon" :size="17" class="sidebar__icon" />
         {{ item.label }}
       </router-link>
 
       <template v-if="auth.isAdmin">
         <p class="sidebar__group-label">Администрирование</p>
         <router-link v-for="item in adminNav" :key="item.to" :to="item.to" class="sidebar__item" active-class="sidebar__item--active">
-          <span class="sidebar__icon">{{ item.icon }}</span>
+          <component :is="item.icon" :size="17" class="sidebar__icon" />
           {{ item.label }}
         </router-link>
       </template>
@@ -65,7 +65,7 @@ const auth = useAuthStore()
 }
 
 .sidebar__icon {
-  font-size: 15px;
+  flex-shrink: 0;
 }
 
 .sidebar__group-label {

@@ -3,6 +3,7 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import UserAvatar from '@/components/ui/UserAvatar.vue'
+import { ChevronDown, ClipboardCheck, LogOut, UserRound } from '@lucide/vue'
 import { adminNav } from './navItems'
 
 const auth = useAuthStore()
@@ -33,7 +34,7 @@ function goProfile() {
   <header class="header">
     <div class="header__inner container">
       <router-link to="/" class="header__brand">
-        <span class="header__logo">PR</span>
+        <span class="header__logo"><ClipboardCheck :size="17" /></span>
         <span class="header__title">Performance Review</span>
       </router-link>
 
@@ -46,11 +47,13 @@ function goProfile() {
             :size="32"
           />
           <span class="header__user-name">{{ auth.currentUser?.fullName }}</span>
-          <span class="header__caret">▾</span>
+          <ChevronDown :size="14" class="header__caret" />
         </button>
 
         <div v-if="menuOpen" class="header__menu">
-          <button type="button" class="header__menu-item" @click="goProfile">Мой профиль</button>
+          <button type="button" class="header__menu-item" @click="goProfile">
+            <UserRound :size="16" /> Мой профиль
+          </button>
           <template v-if="auth.isAdmin">
             <router-link
               v-for="item in adminNav"
@@ -59,10 +62,12 @@ function goProfile() {
               class="header__menu-item header__menu-item--mobile-only"
               @click="menuOpen = false"
             >
-              {{ item.icon }} {{ item.label }}
+              <component :is="item.icon" :size="16" /> {{ item.label }}
             </router-link>
           </template>
-          <button type="button" class="header__menu-item header__menu-item--danger" @click="logout">Выйти</button>
+          <button type="button" class="header__menu-item header__menu-item--danger" @click="logout">
+            <LogOut :size="16" /> Выйти
+          </button>
         </div>
       </div>
     </div>
@@ -100,11 +105,10 @@ function goProfile() {
   border-radius: 8px;
   background: var(--color-primary);
   color: white;
-  font-weight: 800;
-  font-size: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .header__title {
@@ -155,7 +159,7 @@ function goProfile() {
 
 .header__caret {
   color: var(--color-text-faint);
-  font-size: 10px;
+  flex-shrink: 0;
 }
 
 .header__menu {
@@ -174,7 +178,9 @@ function goProfile() {
 }
 
 .header__menu-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 9px;
   text-align: left;
   width: 100%;
   border: none;

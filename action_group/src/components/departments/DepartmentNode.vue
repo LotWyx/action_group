@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useUsersStore } from '@/stores/users'
 import type { DepartmentNode } from '@/api/departmentsService'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
+import { ChevronDown, ChevronRight, Pencil, Plus, Trash2, Users } from '@lucide/vue'
 
 defineProps<{ node: DepartmentNode; depth: number; employeeCount: (id: string) => number }>()
 const emit = defineEmits<{ 'add-child': [parentId: string]; edit: [id: string]; remove: [id: string] }>()
@@ -17,7 +18,8 @@ const collapsed = ref(false)
   <div class="node">
     <div class="node__row" :style="{ paddingLeft: depth * 20 + 'px' }">
       <button v-if="node.children.length" type="button" class="node__toggle" @click="collapsed = !collapsed">
-        {{ collapsed ? '▸' : '▾' }}
+        <ChevronRight v-if="collapsed" :size="15" />
+        <ChevronDown v-else :size="15" />
       </button>
       <span v-else class="node__toggle-spacer" />
       <span class="node__name">{{ node.name }}</span>
@@ -28,10 +30,12 @@ const collapsed = ref(false)
       <span v-else class="text-sm text-faint node__manager">Руководитель не назначен</span>
 
       <div class="node__actions">
-        <button type="button" title="Сотрудники подразделения" @click="router.push({ path: '/employees', query: { dept: node.id } })">👥</button>
-        <button type="button" title="Добавить дочернее" @click="emit('add-child', node.id)">＋</button>
-        <button type="button" title="Редактировать" @click="emit('edit', node.id)">✎</button>
-        <button type="button" title="Удалить" @click="emit('remove', node.id)">🗑</button>
+        <button type="button" title="Сотрудники подразделения" @click="router.push({ path: '/employees', query: { dept: node.id } })">
+          <Users :size="14" />
+        </button>
+        <button type="button" title="Добавить дочернее" @click="emit('add-child', node.id)"><Plus :size="14" /></button>
+        <button type="button" title="Редактировать" @click="emit('edit', node.id)"><Pencil :size="14" /></button>
+        <button type="button" title="Удалить" @click="emit('remove', node.id)"><Trash2 :size="14" /></button>
       </div>
     </div>
 
@@ -67,6 +71,9 @@ const collapsed = ref(false)
   background: none;
   cursor: pointer;
   color: var(--color-text-faint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .node__name {
@@ -91,7 +98,10 @@ const collapsed = ref(false)
   cursor: pointer;
   padding: 6px;
   border-radius: 6px;
-  font-size: 13px;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .node__actions button:hover {
   background: var(--color-surface-alt);

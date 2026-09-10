@@ -8,6 +8,7 @@ import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import { CheckCircle2 } from '@lucide/vue'
 
 const props = defineProps<{ employee: User; canManage: boolean }>()
 
@@ -33,7 +34,7 @@ async function toggleResolved(row: (typeof rows.value)[number]) {
 
 <template>
   <div class="stack gap-md">
-    <EmptyState v-if="!rows.length" icon="✅" title="Проблем не зафиксировано" />
+    <EmptyState v-if="!rows.length" :icon="CheckCircle2" title="Проблем не зафиксировано" />
     <BaseCard v-else :padded="false">
       <ul class="problems-list">
         <li v-for="row in rows" :key="row.problemId" :class="{ 'is-resolved': row.resolved }">

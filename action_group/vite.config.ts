@@ -15,4 +15,16 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  server: {
+    proxy: {
+      // Lets `npm run dev` talk to a locally running FastAPI backend
+      // (`uvicorn app.main:app --reload`) without any CORS setup — same
+      // /api prefix the Docker nginx image proxies in production.
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+    },
+  },
 })

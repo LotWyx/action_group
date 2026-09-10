@@ -1,6 +1,5 @@
 import type { User } from '@/types'
-import { delay, uid } from './storage'
-import { usersService } from './usersService'
+import { http } from './http'
 
 const SESSION_KEY = 'prz:v1:session'
 
@@ -11,18 +10,13 @@ interface StoredSession {
 
 export const authService = {
   async login(login: string, password: string): Promise<User> {
-    await delay(280)
-    const user = await usersService.findByLogin(login)
-    if (!user || user.password !== password) {
-      throw new Error('Неверный логин или пароль')
-    }
-    const session: StoredSession = { userId: user.id, token: uid('token') }
+    const { data } = await http.post<{ token: string; user: User }>('/auth/login', { login, password })
+    const session: StoredSession = { userId: data.user.id, token: data.token }
     localStorage.setItem(SESSION_KEY, JSON.stringify(session))
-    return user
+    return data.user
   },
 
   async logout(): Promise<void> {
-    await delay(80)
     localStorage.removeItem(SESSION_KEY)
   },
 
@@ -30,8 +24,8 @@ export const authService = {
     const raw = localStorage.getItem(SESSION_KEY)
     if (!raw) return null
     try {
-      const session = JSON.parse(raw) as StoredSession
-      return await usersService.get(session.userId)
+      const { data } = await http.get<User>('/auth/me')
+      return data
     } catch {
       localStorage.removeItem(SESSION_KEY)
       return null

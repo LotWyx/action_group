@@ -30,7 +30,9 @@ export const useUsersStore = defineStore('users', () => {
 
   async function update(
     id: string,
-    patch: Partial<Pick<User, 'fullName' | 'login' | 'password' | 'directionId' | 'departmentId' | 'isAdmin'>>,
+    patch: Partial<Pick<User, 'fullName' | 'login' | 'directionId' | 'departmentId' | 'isAdmin'>> & {
+      password?: string
+    },
   ) {
     const user = await usersService.update(id, patch)
     const idx = items.value.findIndex((u) => u.id === id)

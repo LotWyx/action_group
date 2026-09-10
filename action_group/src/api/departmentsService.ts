@@ -1,16 +1,5 @@
 import type { Department } from '@/types'
-import { delay, loadCollection, saveCollection, uid } from './storage'
-import { seedDepartments } from './seed'
-
-let items: Department[] = loadCollection('departments', seedDepartments)
-
-function persist() {
-  saveCollection('departments', items)
-}
-
-function clone<T>(v: T): T {
-  return JSON.parse(JSON.stringify(v))
-}
+import { http } from './http'
 
 /** All ancestor ids from the department up to (and excluding) the root, nearest first. */
 export function getAncestorIds(deptId: string, all: Department[]): string[] {
@@ -53,38 +42,21 @@ export function buildTree(all: Department[]): DepartmentNode[] {
 
 export const departmentsService = {
   async list(): Promise<Department[]> {
-    await delay()
-    return clone(items)
+    const { data } = await http.get<Department[]>('/departments')
+    return data
   },
 
   async create(data: { name: string; parentId: string | null; managerId: string | null }): Promise<Department> {
-    await delay()
-    const dept: Department = { id: uid('dept'), ...data }
-    items.push(dept)
-    persist()
-    return clone(dept)
+    const { data: dept } = await http.post<Department>('/departments', data)
+    return dept
   },
 
   async update(id: string, patch: Partial<Pick<Department, 'name' | 'parentId' | 'managerId'>>): Promise<Department> {
-    await delay()
-    const idx = items.findIndex((d) => d.id === id)
-    const current = items[idx]
-    if (idx === -1 || !current) throw new Error('Подразделение не найдено')
-    if (patch.parentId !== undefined) {
-      if (patch.parentId === id) throw new Error('Подразделение не может быть родителем самого себя')
-      if (patch.parentId && getDescendantIds(id, items).includes(patch.parentId)) {
-        throw new Error('Нельзя перенести подразделение в собственное поддерево')
-      }
-    }
-    const updated = { ...current, ...patch }
-    items[idx] = updated
-    persist()
-    return clone(updated)
+    const { data } = await http.patch<Department>(`/departments/${id}`, patch)
+    return data
   },
 
   async remove(id: string): Promise<void> {
-    await delay()
-    items = items.filter((d) => d.id !== id)
-    persist()
+    await http.delete(`/departments/${id}`)
   },
 }

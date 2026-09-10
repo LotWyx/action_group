@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue'
+import { X } from '@lucide/vue'
 
 const props = withDefaults(
   defineProps<{
@@ -25,7 +26,9 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
       <div class="modal" :class="{ 'modal--wide': props.wide }" role="dialog" aria-modal="true">
         <header class="modal__header">
           <h2 class="modal__title">{{ props.title }}</h2>
-          <button class="modal__close" type="button" aria-label="Закрыть" @click="emit('close')">✕</button>
+          <button class="modal__close" type="button" aria-label="Закрыть" @click="emit('close')">
+            <X :size="15" />
+          </button>
         </header>
         <div class="modal__body">
           <slot />
@@ -98,7 +101,9 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
   border-radius: 50%;
   cursor: pointer;
   color: var(--color-text-muted);
-  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .modal__body {

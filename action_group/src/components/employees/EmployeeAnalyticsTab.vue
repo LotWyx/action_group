@@ -9,6 +9,7 @@ import BaseBadge from '@/components/ui/BaseBadge.vue'
 import DonutProgress from '@/components/charts/DonutProgress.vue'
 import TrendLine from '@/components/charts/TrendLine.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import { TrendingUp } from '@lucide/vue'
 
 const props = defineProps<{ employee: User }>()
 
@@ -50,7 +51,7 @@ const trendPoints = computed(() => {
     <BaseCard>
       <p class="text-sm text-muted" style="margin-bottom: 10px">Динамика зачтённых навыков (по встречам)</p>
       <TrendLine v-if="trendPoints.length" :points="trendPoints" />
-      <EmptyState v-else icon="📈" title="Пока недостаточно данных" description="После первой встречи здесь появится график" />
+      <EmptyState v-else :icon="TrendingUp" title="Пока недостаточно данных" description="После первой встречи здесь появится график" />
     </BaseCard>
 
     <BaseCard v-if="overdue.length">

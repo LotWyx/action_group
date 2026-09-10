@@ -16,6 +16,7 @@ import BaseTabs from '@/components/ui/BaseTabs.vue'
 import UserAvatar from '@/components/ui/UserAvatar.vue'
 import ProgressBar from '@/components/ui/ProgressBar.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import { Folder } from '@lucide/vue'
 
 const users = useUsersStore()
 const departments = useDepartmentsStore()
@@ -159,7 +160,7 @@ const treeGroups = computed<TreeGroup[]>(() => {
     <div v-else class="stack gap-md">
       <BaseCard v-for="group in treeGroups" :key="group.id" :padded="false">
         <div class="tree-group__header" :style="{ paddingLeft: 16 + group.depth * 18 + 'px' }">
-          <span>🗂️</span>
+          <Folder :size="16" class="text-faint" />
           <h3 class="text-lg" style="font-size: 15px">{{ group.label }}</h3>
           <span class="text-sm text-faint">{{ group.users.length }}</span>
         </div>

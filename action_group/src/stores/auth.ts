@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { User } from '@/types'
 import { authService } from '@/api/authService'
+import { usersService } from '@/api/usersService'
 
 export const useAuthStore = defineStore('auth', () => {
   const currentUser = ref<User | null>(null)
@@ -41,5 +42,28 @@ export const useAuthStore = defineStore('auth', () => {
     if (currentUser.value?.id === user.id) currentUser.value = user
   }
 
-  return { currentUser, initialized, loading, error, isAuthenticated, isAdmin, init, login, logout, refreshUser }
+  async function updateMyNotifications(maxChatId: string | null) {
+    const user = await usersService.updateMyNotifications(maxChatId)
+    currentUser.value = user
+    return user
+  }
+
+  async function sendTestNotification() {
+    await usersService.sendTestNotification()
+  }
+
+  return {
+    currentUser,
+    initialized,
+    loading,
+    error,
+    isAuthenticated,
+    isAdmin,
+    init,
+    login,
+    logout,
+    refreshUser,
+    updateMyNotifications,
+    sendTestNotification,
+  }
 })

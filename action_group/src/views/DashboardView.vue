@@ -12,6 +12,8 @@ import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import UserAvatar from '@/components/ui/UserAvatar.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
+import MaxNotificationsCard from '@/components/dashboard/MaxNotificationsCard.vue'
+import { ArrowRight } from '@lucide/vue'
 
 const auth = useAuthStore()
 const users = useUsersStore()
@@ -73,7 +75,7 @@ function userName(id: string) {
 <template>
   <div class="stack gap-lg">
     <div>
-      <h1 class="text-lg">Здравствуйте, {{ me?.fullName?.split(' ')[0] }} 👋</h1>
+      <h1 class="text-lg">Здравствуйте, {{ me?.fullName?.split(' ')[0] }}</h1>
       <p class="text-muted text-sm">
         {{ me ? directions.name(me.directionId) : '' }} · {{ departments.pathLabel(me?.departmentId ?? null) }}
       </p>
@@ -84,20 +86,20 @@ function userName(id: string) {
         <p class="text-sm text-muted">Мой прогресс по плану</p>
         <p class="stat">{{ myPlanProgress }}%</p>
         <BaseButton size="sm" variant="ghost" @click="me && router.push({ name: 'employee-profile', params: { id: me.id } })">
-          Открыть мой профиль →
+          Открыть мой профиль <ArrowRight :size="14" />
         </BaseButton>
       </BaseCard>
 
       <BaseCard v-if="perm.hasSubordinates.value || perm.isAdmin.value">
         <p class="text-sm text-muted">{{ perm.isAdmin.value ? 'Всего сотрудников' : 'В моей команде' }}</p>
         <p class="stat">{{ stats.people }}</p>
-        <BaseButton size="sm" variant="ghost" @click="router.push('/employees')">Список сотрудников →</BaseButton>
+        <BaseButton size="sm" variant="ghost" @click="router.push('/employees')">Список сотрудников <ArrowRight :size="14" /></BaseButton>
       </BaseCard>
 
       <BaseCard v-if="perm.hasSubordinates.value || perm.isAdmin.value">
         <p class="text-sm text-muted">Выполнение плана обучения</p>
         <p class="stat">{{ stats.progress }}%</p>
-        <BaseButton size="sm" variant="ghost" @click="router.push('/analytics')">Подробная аналитика →</BaseButton>
+        <BaseButton size="sm" variant="ghost" @click="router.push('/analytics')">Подробная аналитика <ArrowRight :size="14" /></BaseButton>
       </BaseCard>
 
       <BaseCard v-if="perm.hasSubordinates.value || perm.isAdmin.value">
@@ -125,6 +127,8 @@ function userName(id: string) {
         </li>
       </ul>
     </BaseCard>
+
+    <MaxNotificationsCard />
   </div>
 </template>
 

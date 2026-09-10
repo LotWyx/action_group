@@ -1,9 +1,9 @@
 import axios from 'axios'
 
-// Pre-wired axios client for the future FastAPI backend. Not used yet —
-// every src/api/*Service.ts currently talks to the localStorage mock layer.
-// Swapping a service to real HTTP later means replacing its body with calls
-// through this client; consuming stores/components stay untouched.
+// Axios client for the FastAPI backend. In dev, Vite proxies /api to the
+// backend (see vite.config.ts); in the Docker image, nginx does the same
+// proxying in front of the built static files — so the default baseURL
+// works unchanged in both environments.
 export const http = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? '/api',
   timeout: 15000,
@@ -21,3 +21,18 @@ http.interceptors.request.use((config) => {
   }
   return config
 })
+
+// FastAPI's HTTPException responses look like {"detail": "..."}. Promoting
+// that into the error's `message` means every existing
+// `e instanceof Error ? e.message : '...'` call site across the app already
+// shows the backend's friendly Russian message without any further changes.
+http.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const detail = error?.response?.data?.detail
+    if (typeof detail === 'string') {
+      error.message = detail
+    }
+    return Promise.reject(error)
+  },
+)

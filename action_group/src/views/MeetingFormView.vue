@@ -17,6 +17,7 @@ import BaseTextarea from '@/components/ui/BaseTextarea.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import UserAvatar from '@/components/ui/UserAvatar.vue'
+import { Lock, X } from '@lucide/vue'
 
 const props = defineProps<{ id: string }>()
 
@@ -115,7 +116,6 @@ async function submit() {
   try {
     await meetings.create({
       employeeId: employee.value.id,
-      conductedById: auth.currentUser.id,
       date: date.value,
       summaryMarkdown: summary.value.trim(),
       attachments: attachments
@@ -140,7 +140,7 @@ async function submit() {
 <template>
   <div v-if="!ready" class="text-muted">Загрузка…</div>
   <EmptyState v-else-if="!employee" title="Сотрудник не найден" />
-  <EmptyState v-else-if="!allowed" icon="🔒" title="Нет доступа" description="Проводить встречу может только руководитель этого сотрудника" />
+  <EmptyState v-else-if="!allowed" :icon="Lock" title="Нет доступа" description="Проводить встречу может только руководитель этого сотрудника" />
 
   <form v-else class="stack gap-lg" @submit.prevent="submit">
     <div class="row gap-sm">
@@ -187,7 +187,7 @@ async function submit() {
           Подтверждён
         </label>
         <BaseInput v-model="row.comment" placeholder="Комментарий (необязательно)" />
-        <button type="button" class="remove-btn" @click="removeSkillMark(idx)">✕</button>
+        <button type="button" class="remove-btn" @click="removeSkillMark(idx)"><X :size="14" /></button>
       </div>
     </BaseCard>
 
@@ -204,7 +204,7 @@ async function submit() {
         <BaseInput v-model="row.name" placeholder="Название" />
         <BaseInput v-if="row.type === 'link'" v-model="row.url" placeholder="https://…" />
         <input v-else type="file" class="file-input" @change="onFileChosen(row, $event)" />
-        <button type="button" class="remove-btn" @click="removeAttachment(idx)">✕</button>
+        <button type="button" class="remove-btn" @click="removeAttachment(idx)"><X :size="14" /></button>
       </div>
     </BaseCard>
 
@@ -229,7 +229,7 @@ async function submit() {
           :options="skills.forDirection(employee.directionId).map((s) => ({ value: s.id, label: s.name }))"
         />
         <BaseInput v-model="row.comment" placeholder="Комментарий" />
-        <button type="button" class="remove-btn" @click="removeProblem(idx)">✕</button>
+        <button type="button" class="remove-btn" @click="removeProblem(idx)"><X :size="14" /></button>
       </div>
     </BaseCard>
 
@@ -300,6 +300,9 @@ async function submit() {
   height: 32px;
   border-radius: 50%;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .remove-btn:hover {
   color: var(--color-danger);

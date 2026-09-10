@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
+import { ClipboardCheck } from '@lucide/vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -44,7 +45,7 @@ async function submit() {
 <template>
   <div class="login">
     <form class="login__card" @submit.prevent="submit">
-      <div class="login__logo">PR</div>
+      <div class="login__logo"><ClipboardCheck :size="22" /></div>
       <h1 class="login__title">Performance Review</h1>
       <p class="login__subtitle">Система мониторинга развития технических навыков команды</p>
 

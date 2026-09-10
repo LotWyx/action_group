@@ -25,12 +25,11 @@ export interface User {
   id: string
   fullName: string
   login: string
-  /** Demo-only plaintext password. A real backend must never expose this. */
-  password: string
   directionId: string
   departmentId: string | null
   isAdmin: boolean
   avatarColor: string
+  maxChatId: string | null
   createdAt: string
 }
 

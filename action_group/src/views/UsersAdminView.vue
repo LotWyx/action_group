@@ -15,6 +15,7 @@ import BaseModal from '@/components/ui/BaseModal.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
 import UserAvatar from '@/components/ui/UserAvatar.vue'
 import { directionBadgeVariant } from '@/utils/directionBadge'
+import { Pencil, Trash2 } from '@lucide/vue'
 
 const users = useUsersStore()
 const departments = useDepartmentsStore()
@@ -164,8 +165,8 @@ const directionOptions = computed(() => directions.items.map((d) => ({ value: d.
           <BaseBadge :variant="directionBadgeVariant(u.directionId)">{{ directions.name(u.directionId) }}</BaseBadge>
           <BaseBadge v-if="u.isAdmin" variant="info">Админ</BaseBadge>
           <div class="row gap-xs">
-            <button type="button" class="icon-btn" title="Редактировать" @click="openEdit(u)">✎</button>
-            <button type="button" class="icon-btn" title="Удалить" @click="removeUser(u)">🗑</button>
+            <button type="button" class="icon-btn" title="Редактировать" @click="openEdit(u)"><Pencil :size="14" /></button>
+            <button type="button" class="icon-btn" title="Удалить" @click="removeUser(u)"><Trash2 :size="14" /></button>
           </div>
         </li>
       </ul>
@@ -227,6 +228,10 @@ const directionOptions = computed(() => directions.items.map((d) => ({ value: d.
   height: 30px;
   border-radius: 50%;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
 }
 .icon-btn:hover {
   background: var(--color-border);

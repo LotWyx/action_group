@@ -14,6 +14,7 @@ import BaseBadge from '@/components/ui/BaseBadge.vue'
 import BaseTabs from '@/components/ui/BaseTabs.vue'
 import UserAvatar from '@/components/ui/UserAvatar.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import { Lock } from '@lucide/vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import PlanTab from '@/components/employees/PlanTab.vue'
 import MeetingsTab from '@/components/employees/MeetingsTab.vue'
@@ -78,7 +79,7 @@ const activeTab = ref(initialTab)
     </template>
   </EmptyState>
 
-  <EmptyState v-else-if="!canView" icon="🔒" title="Нет доступа" description="У вас нет прав для просмотра профиля этого сотрудника" />
+  <EmptyState v-else-if="!canView" :icon="Lock" title="Нет доступа" description="У вас нет прав для просмотра профиля этого сотрудника" />
 
   <div v-else class="stack gap-lg">
     <BaseCard>

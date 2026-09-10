@@ -10,6 +10,7 @@ import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import { Check, ChevronDown, ChevronUp, Link2, Paperclip } from '@lucide/vue'
 
 const props = defineProps<{ employee: User; canManage: boolean }>()
 
@@ -52,7 +53,8 @@ function goCreate() {
             {{ m.skillMarks.filter((s) => s.confirmed).length }} навык(ов) подтверждено
           </BaseBadge>
           <BaseBadge v-if="m.problems.some((p) => !p.resolved)" variant="danger">проблема</BaseBadge>
-          <span class="meeting__chevron">{{ expanded.has(m.id) ? '▲' : '▼' }}</span>
+          <ChevronUp v-if="expanded.has(m.id)" :size="15" class="meeting__chevron" />
+          <ChevronDown v-else :size="15" class="meeting__chevron" />
         </div>
       </button>
 
@@ -64,7 +66,8 @@ function goCreate() {
           <ul class="meeting__marks">
             <li v-for="mark in m.skillMarks" :key="mark.skillId">
               <BaseBadge :variant="mark.confirmed ? 'success' : 'neutral'">
-                {{ mark.confirmed ? '✓' : '·' }} {{ skills.name(mark.skillId) }}
+                <Check v-if="mark.confirmed" :size="12" />
+                {{ skills.name(mark.skillId) }}
               </BaseBadge>
               <span v-if="mark.comment" class="text-sm text-muted"> — {{ mark.comment }}</span>
             </li>
@@ -75,7 +78,11 @@ function goCreate() {
           <p class="meeting__section-title">Материалы</p>
           <ul class="meeting__attachments">
             <li v-for="a in m.attachments" :key="a.id">
-              <a :href="a.url" target="_blank" rel="noopener">{{ a.type === 'link' ? '🔗' : '📎' }} {{ a.name }}</a>
+              <a :href="a.url" target="_blank" rel="noopener" class="meeting__attachment-link">
+                <Link2 v-if="a.type === 'link'" :size="13" />
+                <Paperclip v-else :size="13" />
+                {{ a.name }}
+              </a>
             </li>
           </ul>
         </div>
@@ -116,7 +123,7 @@ function goCreate() {
 
 .meeting__chevron {
   color: var(--color-text-faint);
-  font-size: 11px;
+  flex-shrink: 0;
 }
 
 .meeting__body {
@@ -154,7 +161,10 @@ function goCreate() {
   text-decoration: line-through;
 }
 
-.meeting__attachments a {
+.meeting__attachment-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   text-decoration: none;
   font-size: 13.5px;
 }

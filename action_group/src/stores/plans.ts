@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { PlanItem } from '@/types'
-import { plansService, deriveStatus } from '@/api/plansService'
+import { plansService } from '@/api/plansService'
 
 export const usePlansStore = defineStore('plans', () => {
   const items = ref<PlanItem[]>([])
@@ -12,8 +12,7 @@ export const usePlansStore = defineStore('plans', () => {
     if (loaded.value && !force) return
     loading.value = true
     try {
-      const raw = await plansService.listAll()
-      items.value = raw.map((p) => ({ ...p, status: deriveStatus(p) }))
+      items.value = await plansService.listAll()
       loaded.value = true
     } finally {
       loading.value = false
@@ -33,7 +32,7 @@ export const usePlansStore = defineStore('plans', () => {
   async function updatePlannedDate(id: string, plannedDate: string) {
     const item = await plansService.updatePlannedDate(id, plannedDate)
     const idx = items.value.findIndex((p) => p.id === id)
-    if (idx !== -1) items.value[idx] = { ...item, status: deriveStatus(item) }
+    if (idx !== -1) items.value[idx] = item
     return item
   }
 
@@ -42,10 +41,5 @@ export const usePlansStore = defineStore('plans', () => {
     items.value = items.value.filter((p) => p.id !== id)
   }
 
-  /** Re-derives overdue "problem" status without a full refetch. */
-  function refreshStatuses() {
-    items.value = items.value.map((p) => ({ ...p, status: deriveStatus(p) }))
-  }
-
-  return { items, loaded, loading, fetchAll, forUser, addSkill, updatePlannedDate, remove, refreshStatuses }
+  return { items, loaded, loading, fetchAll, forUser, addSkill, updatePlannedDate, remove }
 })

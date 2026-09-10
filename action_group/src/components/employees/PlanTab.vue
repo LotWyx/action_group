@@ -12,6 +12,7 @@ import BaseSelect from '@/components/ui/BaseSelect.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import type { PlanItemStatus, User } from '@/types'
+import { X } from '@lucide/vue'
 
 const props = defineProps<{ employee: User; canManage: boolean }>()
 
@@ -113,7 +114,7 @@ async function removeItem(id: string, skillName: string) {
           </div>
           <BaseBadge :variant="statusMeta[item.status].variant">{{ statusMeta[item.status].label }}</BaseBadge>
           <button v-if="canManage" class="plan-item__remove" type="button" title="Убрать из плана" @click="removeItem(item.id, skills.name(item.skillId))">
-            ✕
+            <X :size="14" />
           </button>
         </li>
       </ul>
@@ -187,8 +188,10 @@ async function removeItem(id: string, skillName: string) {
   background: none;
   color: var(--color-text-faint);
   cursor: pointer;
-  font-size: 14px;
   padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .plan-item__remove:hover {
   color: var(--color-danger);

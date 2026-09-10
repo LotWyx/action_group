@@ -1,10 +1,13 @@
 <script setup lang="ts">
-withDefaults(defineProps<{ icon?: string; title: string; description?: string }>(), { icon: '📭' })
+import type { Component } from 'vue'
+import { Inbox } from '@lucide/vue'
+
+const props = defineProps<{ icon?: Component; title: string; description?: string }>()
 </script>
 
 <template>
   <div class="empty">
-    <div class="empty__icon">{{ icon }}</div>
+    <component :is="props.icon ?? Inbox" :size="32" class="empty__icon" stroke-width="1.5" />
     <p class="empty__title">{{ title }}</p>
     <p v-if="description" class="empty__desc">{{ description }}</p>
     <div v-if="$slots.action" class="empty__action"><slot name="action" /></div>
@@ -18,8 +21,8 @@ withDefaults(defineProps<{ icon?: string; title: string; description?: string }>
   color: var(--color-text-muted);
 }
 .empty__icon {
-  font-size: 34px;
   margin-bottom: 10px;
+  color: var(--color-text-faint);
 }
 .empty__title {
   font-weight: 600;

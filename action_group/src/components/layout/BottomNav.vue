@@ -11,7 +11,7 @@ import { primaryNav } from './navItems'
       class="bottom-nav__item"
       active-class="bottom-nav__item--active"
     >
-      <span class="bottom-nav__icon">{{ item.icon }}</span>
+      <component :is="item.icon" :size="19" class="bottom-nav__icon" />
       <span class="bottom-nav__label">{{ item.label }}</span>
     </router-link>
   </nav>
@@ -44,9 +44,6 @@ import { primaryNav } from './navItems'
   font-weight: 600;
 }
 
-.bottom-nav__icon {
-  font-size: 18px;
-}
 
 .bottom-nav__item--active {
   color: var(--color-primary);
