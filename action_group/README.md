@@ -1,48 +1,103 @@
-# action_group
+# Performance Review — фронтенд (Кейс 4 «Я хочу развиваться»)
 
-This template should help get you started developing with Vue 3 in Vite.
+Система мониторинга развития технических навыков команды: годовое планирование
+обучения, протоколы PR-встреч (1:1), древовидная структура подразделений с
+правами, зависящими от положения в дереве, и аналитика по прогрессу.
 
-## Recommended IDE Setup
+Frontend: **Vue 3 + TypeScript + Vite + Pinia + Vue Router**.
+Backend (FastAPI) будет подключён позже — сейчас все данные живут в
+браузере (`localStorage`) за слоем сервисов, который спроектирован так, чтобы
+подмена на реальные HTTP-запросы не затронула стораы и компоненты.
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+## Демо-доступ
 
-## Recommended Browser Setup
+После первого запуска приложение само засеивает демонстрационную компанию
+(дерево подразделений, справочник навыков, годовые планы, пара протоколов
+встреч). Логины/пароли:
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+| Логин       | Пароль    | Роль в дереве                                              |
+|-------------|-----------|--------------------------------------------------------------|
+| `admin`     | `admin`   | Администратор системы (видит всё)                            |
+| `ceo`       | `ceo123`  | Руководитель компании                                         |
+| `cto`       | `cto123`  | Руководитель «Разработки» **и** подчинённый CEO в его PR       |
+| `back.lead` | `lead123` | Тимлид Backend, подчинённый CTO                                |
+| `front.lead`| `lead123` | Тимлид Frontend                                                |
+| `qa.lead`   | `lead123` | Тимлид QA                                                      |
+| `a.volkov`  | `pass123` | Разработчик без подчинённых (видит только свой профиль)        |
 
-## Type Support for `.vue` Imports in TS
+Права нигде не хранятся как фиксированная роль пользователя — они каждый раз
+вычисляются относительно открытого профиля (см. `src/composables/usePermissions.ts`):
+администратору доступно всё; руководителю подразделения — все сотрудники в
+его поддереве дерева; остальным — только свой профиль. Один и тот же человек
+(например, CTO) может одновременно вести PR своих подчинённых и быть
+подчинённым в PR у вышестоящего руководителя.
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
+## Запуск
 
 ```sh
 npm install
+npm run dev      # http://localhost:5173
+npm run build    # проверка типов + production-сборка
+npm run lint     # oxlint + eslint
 ```
 
-### Compile and Hot-Reload for Development
+## Архитектура
 
-```sh
-npm run dev
+```
+src/
+  types/            доменные типы (User, Department, Skill, Meeting, PlanItem…)
+  api/               мок-слой: seed-данные + localStorage + сервисы CRUD
+    storage.ts        обёртка над localStorage с эмуляцией сетевой задержки
+    seed.ts            детерминированные демо-данные
+    *Service.ts        один сервис на сущность — единственное место,
+                        которое нужно переписать на реальные HTTP-запросы
+    http.ts            заранее настроенный axios-клиент для будущего FastAPI
+  stores/            Pinia-сторы поверх сервисов (auth, users, departments,
+                     skills, directions, plans, meetings)
+  composables/
+    usePermissions.ts  вся логика прав, завязанная на дерево подразделений
+    useMarkdown.ts      рендер markdown в протоколах встреч (marked + DOMPurify)
+    useToast.ts / useConfirm.ts   лёгкие UI-примитивы без сторонних библиотек
+  components/
+    ui/                переиспользуемый UI-кит (кнопки, поля, модалки…)
+    layout/             адаптивный каркас: сайдбар на десктопе, нижняя
+                        навигация на телефоне
+    departments/         рекурсивное дерево подразделений
+    employees/            вкладки профиля сотрудника (план/встречи/проблемы/аналитика)
+    charts/               лёгкие SVG-графики без внешних чарт-библиотек
+  views/              экраны, подключённые к вотеру
 ```
 
-### Type-Check, Compile and Minify for Production
+### Как подключить FastAPI вместо мок-слоя
 
-```sh
-npm run build
-```
+Каждый файл `src/api/*Service.ts` экспортирует объект с async-методами,
+которые сейчас читают/пишут `localStorage`. Чтобы переключиться на реальный
+backend, нужно переписать тело методов на вызовы через уже готовый
+`src/api/http.ts` (axios с базовым URL из `VITE_API_BASE_URL` и подстановкой
+токена из сессии) — сигнатуры и стораы, которые их вызывают, менять не нужно.
 
-### Lint with [ESLint](https://eslint.org/)
+## Реализованный функционал (обязательные пункты кейса)
 
-```sh
-npm run lint
-```
+1. **Пользователи** — аутентификация (логин/пароль), CRUD, привязка к
+   подразделению и направлению (`/users`, только администратор).
+2. **Структура подразделений** — дерево произвольной вложенности, CRUD,
+   назначение руководителя, перенос узла/сотрудника в другой узел (`/departments`).
+3. **Права относительно сотрудника, а не роли** — см. `usePermissions.ts`.
+4. **PR-встречи** — протокол с датой, markdown-итогами, вложениями
+   (файл/ссылка), отметками по скиллам и проблемами (`/employees/:id/meetings/new`).
+5. **Справочник навыков** — направления и скиллы, редактируемые
+   администратором; на его основе строится годовой план сотрудника (`/skills`).
+6. **Аналитика** — по подразделению (прогресс, % выполнения плана, открытые
+   проблемы) и по сотруднику (динамика зачтённых скиллов, отставание от
+   плановых дат); список сотрудников с фильтрами по направлению/подразделению
+   вынесен в отдельный экран `/employees`.
+
+Дополнительно: свёрнутый календарь «ближайшие плановые даты» на главном
+экране — маленькая версия опциональной таймлайн-фичи из кейса.
+
+## Адаптивность
+
+Мобильная раскладка (< 861px): нижняя навигация, модалки-шторки снизу,
+таблицы/сетки схлопываются в карточки/одну колонку. Десктоп (≥ 861px):
+боковой сайдбар, модалки по центру, многоколоночные сетки. Проверено вручную
+в Chromium на 390×844 и 1280–1400px.

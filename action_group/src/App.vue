@@ -1,11 +1,17 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+import AppShell from '@/components/layout/AppShell.vue'
+import ToastHost from '@/components/ui/ToastHost.vue'
+import ConfirmHost from '@/components/ui/ConfirmHost.vue'
+
+const route = useRoute()
+const bare = computed(() => route.meta.public === true)
+</script>
 
 <template>
-  <h1>You did it!</h1>
-  <p>
-    Visit <a href="https://vuejs.org/" target="_blank" rel="noopener">vuejs.org</a> to read the
-    documentation
-  </p>
+  <AppShell v-if="!bare" />
+  <router-view v-else />
+  <ToastHost />
+  <ConfirmHost />
 </template>
-
-<style scoped></style>
