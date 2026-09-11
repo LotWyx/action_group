@@ -7,7 +7,7 @@ import type { User } from '@/types'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
 import DonutProgress from '@/components/charts/DonutProgress.vue'
-import StatTrend from '@/components/charts/StatTrend.vue'
+import CandleChart from '@/components/charts/CandleChart.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import AchievementBadges from '@/components/employees/AchievementBadges.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -35,55 +35,14 @@ function formatShortDate(iso: string) {
   return `${day}.${month}`
 }
 
-/** Turns a map of {date -> delta} into a running total over time, starting
- * from a true zero before anything happened — a plain, literal count a
- * manager reads at a glance, not an abstract score. */
-function buildSeries(byDate: Map<string, number>, clampAtZero = false) {
-  const dates = [...byDate.keys()].sort()
-  const points = [{ label: 'Старт', value: 0 }]
-  let cumulative = 0
-  for (const date of dates) {
-    cumulative += byDate.get(date) ?? 0
-    if (clampAtZero) cumulative = Math.max(0, cumulative)
-    points.push({ label: formatShortDate(date), value: cumulative })
-  }
-  return points
+/** Russian plural form: 1 навык, 2 навыка, 5 навыков. */
+function ru(n: number, one: string, few: string, many: string) {
+  const mod10 = n % 10
+  const mod100 = n % 100
+  if (mod10 === 1 && mod100 !== 11) return one
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return few
+  return many
 }
-
-// Сколько навыков подтверждено на сегодня, по датам встреч — всегда растёт.
-const skillsSeries = computed(() => {
-  const byDate = new Map<string, number>()
-  for (const m of meetings.forUser(props.employee.id)) {
-    const confirmed = m.skillMarks.filter((s) => s.confirmed).length
-    if (confirmed) byDate.set(m.date, (byDate.get(m.date) ?? 0) + confirmed)
-  }
-  return buildSeries(byDate)
-})
-
-// Сколько проблем сейчас открыто: явные проблемы со встреч (пока не
-// отмечены решёнными) и навыки с просроченной плановой датой, которые ещё
-// не подтвердили. Число реально открытых проблем на сегодня — растёт,
-// когда проблема появляется, и падает, когда её закрывают/подтверждают.
-const issuesSeries = computed(() => {
-  const byDate = new Map<string, number>()
-  const bump = (date: string, delta: number) => byDate.set(date, (byDate.get(date) ?? 0) + delta)
-
-  for (const m of meetings.forUser(props.employee.id)) {
-    for (const p of m.problems) {
-      bump(m.date, 1)
-      if (p.resolved && p.resolvedAt) bump(p.resolvedAt, -1)
-    }
-  }
-  for (const item of items.value) {
-    if (item.status === 'problem') {
-      bump(item.plannedDate, 1)
-    } else if (item.confirmedDate && item.confirmedDate > item.plannedDate) {
-      bump(item.plannedDate, 1)
-      bump(item.confirmedDate, -1)
-    }
-  }
-  return buildSeries(byDate, true)
-})
 
 const openIssuesCount = computed(() => {
   const unresolvedFromMeetings = meetings
@@ -93,15 +52,60 @@ const openIssuesCount = computed(() => {
   return unresolvedFromMeetings + overdue.value.length
 })
 
-// Сглаженный спарклайн слабо показывает падение на пару единиц на глаз —
-// проговариваем это явно текстом, отдельно от самой кривой.
-const issuesCaption = computed(() => {
-  const peak = Math.max(0, ...issuesSeries.value.map((p) => p.value))
-  const diff = peak - openIssuesCount.value
-  return diff > 0 ? `−${diff} от пика (${peak})` : null
-})
+interface DayEvent {
+  skills: number
+  opened: number
+  closed: number
+}
 
-const hasTrendData = computed(() => skillsSeries.value.length > 1 || issuesSeries.value.length > 1)
+// Один общий график вместо двух: по каждой дате события считаем, сколько
+// навыков подтвердили (+), сколько проблем/просрочек появилось (−) и
+// сколько закрылось (+). Каждая "свеча" — это движение итогового счёта от
+// значения до этого события к значению после него, поэтому высота столбика
+// — реальная величина изменения, а не доля от общего максимума (как было
+// раньше со спарклайнами) — провал в пару единиц виден так же чётко, как
+// и рост.
+const candles = computed(() => {
+  const byDate = new Map<string, DayEvent>()
+  const at = (date: string) => {
+    let e = byDate.get(date)
+    if (!e) {
+      e = { skills: 0, opened: 0, closed: 0 }
+      byDate.set(date, e)
+    }
+    return e
+  }
+
+  for (const m of meetings.forUser(props.employee.id)) {
+    const confirmed = m.skillMarks.filter((s) => s.confirmed).length
+    if (confirmed) at(m.date).skills += confirmed
+    for (const p of m.problems) {
+      at(m.date).opened += 1
+      if (p.resolved && p.resolvedAt) at(p.resolvedAt).closed += 1
+    }
+  }
+  for (const item of items.value) {
+    if (item.status === 'problem') {
+      at(item.plannedDate).opened += 1
+    } else if (item.confirmedDate && item.confirmedDate > item.plannedDate) {
+      at(item.plannedDate).opened += 1
+      at(item.confirmedDate).closed += 1
+    }
+  }
+
+  let cumulative = 0
+  return [...byDate.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, e]) => {
+      const open = cumulative
+      cumulative += e.skills - e.opened + e.closed
+      const parts: string[] = []
+      if (e.skills) parts.push(`+${e.skills} ${ru(e.skills, 'навык', 'навыка', 'навыков')}`)
+      if (e.opened) parts.push(`−${e.opened} ${ru(e.opened, 'проблема', 'проблемы', 'проблем')}`)
+      if (e.closed) parts.push(`закрыто ${e.closed} ${ru(e.closed, 'проблема', 'проблемы', 'проблем')}`)
+      return { label: formatShortDate(date), open, close: cumulative, breakdown: parts.join(', ') }
+    })
+})
 </script>
 
 <template>
@@ -129,18 +133,22 @@ const hasTrendData = computed(() => skillsSeries.value.length > 1 || issuesSerie
     <AchievementBadges :employee="employee" />
 
     <BaseCard>
-      <p class="text-sm text-muted" style="margin-bottom: 14px">Динамика</p>
-      <div v-if="hasTrendData" class="trend-grid">
-        <StatTrend label="Подтверждено навыков" :value="confirmedCount" accent="var(--color-success)" :points="skillsSeries" />
-        <StatTrend
-          label="Проблемы и просрочки"
-          :value="openIssuesCount"
-          accent="var(--color-danger)"
-          :points="issuesSeries"
-          :caption="issuesCaption"
-          :caption-good="true"
-        />
+      <div class="row" style="justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px">
+        <p class="text-sm text-muted">Динамика по встречам</p>
+        <div class="row gap-sm text-sm text-muted" style="align-items: center">
+          <span class="legend-dot" style="background: var(--color-success)" /> прогресс
+          <span class="legend-dot" style="background: var(--color-danger)" /> провал
+        </div>
       </div>
+      <template v-if="candles.length">
+        <div class="row gap-sm wrap" style="margin-bottom: 12px">
+          <BaseBadge variant="success">{{ confirmedCount }} {{ ru(confirmedCount, 'навык', 'навыка', 'навыков') }} подтверждено</BaseBadge>
+          <BaseBadge v-if="openIssuesCount" variant="danger">
+            {{ openIssuesCount }} {{ ru(openIssuesCount, 'открытая проблема', 'открытые проблемы', 'открытых проблем') }}
+          </BaseBadge>
+        </div>
+        <CandleChart :candles="candles" />
+      </template>
       <EmptyState v-else :icon="TrendingUp" title="Пока недостаточно данных" description="После первой встречи здесь появится график" />
     </BaseCard>
 
@@ -164,10 +172,11 @@ const hasTrendData = computed(() => skillsSeries.value.length > 1 || issuesSerie
   font-weight: 800;
   margin: 4px 0;
 }
-.trend-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
 }
 .lag-list {
   list-style: none;
@@ -194,10 +203,6 @@ const hasTrendData = computed(() => skillsSeries.value.length > 1 || issuesSerie
 @media (max-width: 560px) {
   .grid {
     grid-template-columns: 1fr !important;
-  }
-  .trend-grid {
-    grid-template-columns: 1fr !important;
-    gap: 20px !important;
   }
 }
 </style>
