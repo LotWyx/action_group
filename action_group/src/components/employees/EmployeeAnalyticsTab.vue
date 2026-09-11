@@ -93,6 +93,14 @@ const openIssuesCount = computed(() => {
   return unresolvedFromMeetings + overdue.value.length
 })
 
+// Сглаженный спарклайн слабо показывает падение на пару единиц на глаз —
+// проговариваем это явно текстом, отдельно от самой кривой.
+const issuesCaption = computed(() => {
+  const peak = Math.max(0, ...issuesSeries.value.map((p) => p.value))
+  const diff = peak - openIssuesCount.value
+  return diff > 0 ? `−${diff} от пика (${peak})` : null
+})
+
 const hasTrendData = computed(() => skillsSeries.value.length > 1 || issuesSeries.value.length > 1)
 </script>
 
@@ -124,7 +132,14 @@ const hasTrendData = computed(() => skillsSeries.value.length > 1 || issuesSerie
       <p class="text-sm text-muted" style="margin-bottom: 14px">Динамика</p>
       <div v-if="hasTrendData" class="trend-grid">
         <StatTrend label="Подтверждено навыков" :value="confirmedCount" accent="var(--color-success)" :points="skillsSeries" />
-        <StatTrend label="Проблемы и просрочки" :value="openIssuesCount" accent="var(--color-danger)" :points="issuesSeries" />
+        <StatTrend
+          label="Проблемы и просрочки"
+          :value="openIssuesCount"
+          accent="var(--color-danger)"
+          :points="issuesSeries"
+          :caption="issuesCaption"
+          :caption-good="true"
+        />
       </div>
       <EmptyState v-else :icon="TrendingUp" title="Пока недостаточно данных" description="После первой встречи здесь появится график" />
     </BaseCard>

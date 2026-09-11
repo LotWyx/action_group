@@ -6,6 +6,11 @@ const props = defineProps<{
   value: number
   accent: string
   points: { label: string; value: number }[]
+  /** Short "куда движемся" подпись под цифрой — например, сравнение с
+   * пиковым значением. Направление задаёт вызывающий код (что "хорошо"
+   * для одной метрики — "плохо" для другой), сам компонент этого не знает. */
+  caption?: string | null
+  captionGood?: boolean
 }>()
 
 const width = 240
@@ -71,12 +76,31 @@ const areaPath = computed(() => {
 // инлайн-график.
 const lastSegment = computed(() => smoothed.value.tail)
 const lastPoint = computed(() => coords.value[coords.value.length - 1] ?? null)
+
+// Сглаженная кривая, растянутая по своему же максимуму, слабо показывает
+// спад в несколько единиц на глаз — отмечаем сам пик отдельной точкой,
+// чтобы «график пошёл вниз с пика» было видно, а не только читалось в
+// подписи под цифрой.
+const peakPoint = computed(() => {
+  const pts = coords.value
+  if (pts.length < 2) return null
+  const last = pts[pts.length - 1]!
+  let peak = pts[0]!
+  for (const p of pts) if (p.value > peak.value) peak = p
+  return peak.value > last.value ? peak : null
+})
+
+const firstLabel = computed(() => props.points[0]?.label ?? '')
+const lastLabel = computed(() => props.points[props.points.length - 1]?.label ?? '')
 </script>
 
 <template>
   <div class="stat-trend">
     <p class="stat-trend__label">{{ label }}</p>
-    <p class="stat-trend__value">{{ value }}</p>
+    <div class="stat-trend__row">
+      <p class="stat-trend__value">{{ value }}</p>
+      <p v-if="caption" class="stat-trend__caption" :class="{ 'is-good': captionGood }">{{ caption }}</p>
+    </div>
     <svg
       v-if="points.length > 1"
       :viewBox="`0 0 ${width} ${height}`"
@@ -89,6 +113,9 @@ const lastPoint = computed(() => coords.value[coords.value.length - 1] ?? null)
       <path :d="areaPath" :fill="accent" opacity="0.1" />
       <path :d="linePath" fill="none" stroke="var(--color-border)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
       <path :d="lastSegment" fill="none" :stroke="accent" stroke-width="2.5" stroke-linecap="round" />
+      <template v-if="peakPoint">
+        <circle :cx="peakPoint.x" :cy="peakPoint.y" r="3" fill="var(--color-text-faint)"><title>Пик: {{ peakPoint.value }}</title></circle>
+      </template>
       <template v-if="lastPoint">
         <circle :cx="lastPoint.x" :cy="lastPoint.y" r="6" fill="var(--color-surface)" />
         <circle :cx="lastPoint.x" :cy="lastPoint.y" r="4" :fill="accent" />
@@ -97,6 +124,10 @@ const lastPoint = computed(() => coords.value[coords.value.length - 1] ?? null)
         <circle :cx="c.x" :cy="c.y" r="8" fill="transparent"><title>{{ c.label }}: {{ c.value }}</title></circle>
       </g>
     </svg>
+    <div v-if="points.length > 1" class="stat-trend__axis">
+      <span>{{ firstLabel }}</span>
+      <span>{{ lastLabel }}</span>
+    </div>
   </div>
 </template>
 
@@ -110,10 +141,24 @@ const lastPoint = computed(() => coords.value[coords.value.length - 1] ?? null)
   font-size: 12.5px;
   color: var(--color-text-muted);
 }
+.stat-trend__row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 .stat-trend__value {
   font-size: 28px;
   font-weight: 700;
   line-height: 1.15;
+}
+.stat-trend__caption {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+.stat-trend__caption.is-good {
+  color: var(--color-success);
 }
 .stat-trend__spark {
   width: 100%;
@@ -124,5 +169,12 @@ const lastPoint = computed(() => coords.value[coords.value.length - 1] ?? null)
 .stat-trend__baseline {
   stroke: var(--color-border);
   stroke-width: 1;
+}
+.stat-trend__axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--color-text-faint);
+  margin-top: 2px;
 }
 </style>
