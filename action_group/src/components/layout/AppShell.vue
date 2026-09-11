@@ -1,7 +1,22 @@
 <script setup lang="ts">
+import { onMounted } from 'vue'
+import { useAuthStore } from '@/stores/auth'
+import { useUsersStore } from '@/stores/users'
+import { useDepartmentsStore } from '@/stores/departments'
 import AppHeader from './AppHeader.vue'
 import AppSidebar from './AppSidebar.vue'
 import BottomNav from './BottomNav.vue'
+
+// Nav visibility depends on usePermissions().hasSubordinates, which needs
+// these two stores loaded regardless of which view mounts first. AppShell
+// can mount briefly before the router's initial navigation resolves
+// (vue-router's START_LOCATION has no meta yet), so skip while logged out
+// and swallow errors — a real, authenticated view will fetch these anyway.
+onMounted(() => {
+  if (!useAuthStore().isAuthenticated) return
+  useUsersStore().fetchAll().catch(() => {})
+  useDepartmentsStore().fetchAll().catch(() => {})
+})
 </script>
 
 <template>

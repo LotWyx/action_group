@@ -76,5 +76,18 @@ async def delete_department(
     dept = await db.get(models.Department, dept_id)
     if not dept:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Подразделение не найдено")
+
+    has_child = (
+        await db.execute(select(models.Department.id).where(models.Department.parent_id == dept_id).limit(1))
+    ).scalar_one_or_none()
+    if has_child:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Сначала перенесите дочерние подразделения в другой узел")
+
+    has_employee = (
+        await db.execute(select(models.User.id).where(models.User.department_id == dept_id).limit(1))
+    ).scalar_one_or_none()
+    if has_employee:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Сначала перенесите сотрудников этого подразделения в другой узел")
+
     await db.delete(dept)
     await db.commit()

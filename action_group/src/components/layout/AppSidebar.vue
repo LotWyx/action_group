@@ -1,14 +1,21 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { usePermissions } from '@/composables/usePermissions'
 import { primaryNav, adminNav } from './navItems'
 
 const auth = useAuthStore()
+const perm = usePermissions()
+
+const visibleNav = computed(() =>
+  primaryNav.filter((item) => !item.requiresSubordinates || perm.isAdmin.value || perm.hasSubordinates.value),
+)
 </script>
 
 <template>
   <aside class="sidebar">
     <nav class="sidebar__nav">
-      <router-link v-for="item in primaryNav" :key="item.to" :to="item.to" class="sidebar__item" active-class="sidebar__item--active">
+      <router-link v-for="item in visibleNav" :key="item.to" :to="item.to" class="sidebar__item" active-class="sidebar__item--active">
         <component :is="item.icon" :size="17" class="sidebar__icon" />
         {{ item.label }}
       </router-link>

@@ -36,6 +36,7 @@ export interface Skill {
   id: string
   name: string
   directionId: string
+  description: string | null
 }
 
 export type PlanItemStatus = 'planned' | 'confirmed' | 'problem'

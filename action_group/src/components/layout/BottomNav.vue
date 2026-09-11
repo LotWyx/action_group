@@ -1,11 +1,19 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { usePermissions } from '@/composables/usePermissions'
 import { primaryNav } from './navItems'
+
+const perm = usePermissions()
+
+const visibleNav = computed(() =>
+  primaryNav.filter((item) => !item.requiresSubordinates || perm.isAdmin.value || perm.hasSubordinates.value),
+)
 </script>
 
 <template>
   <nav class="bottom-nav">
     <router-link
-      v-for="item in primaryNav"
+      v-for="item in visibleNav"
       :key="item.to"
       :to="item.to"
       class="bottom-nav__item"

@@ -23,6 +23,7 @@ async def lifespan(app: FastAPI):
         # create_all never alters existing tables, so new nullable columns
         # are patched in here instead of requiring a destructive DB reset.
         await conn.execute(text("ALTER TABLE problem_flags ADD COLUMN IF NOT EXISTS resolved_at DATE"))
+        await conn.execute(text("ALTER TABLE skills ADD COLUMN IF NOT EXISTS description TEXT"))
     async with SessionLocal() as db:
         await seed_if_empty(db)
 

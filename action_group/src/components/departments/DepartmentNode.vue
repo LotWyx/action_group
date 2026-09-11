@@ -4,10 +4,15 @@ import { useRouter } from 'vue-router'
 import { useUsersStore } from '@/stores/users'
 import type { DepartmentNode } from '@/api/departmentsService'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
-import { ChevronDown, ChevronRight, Pencil, Plus, Trash2, Users } from '@lucide/vue'
+import { ChevronDown, ChevronRight, Pencil, Plus, Trash2, UserPlus, Users } from '@lucide/vue'
 
 defineProps<{ node: DepartmentNode; depth: number; employeeCount: (id: string) => number }>()
-const emit = defineEmits<{ 'add-child': [parentId: string]; edit: [id: string]; remove: [id: string] }>()
+const emit = defineEmits<{
+  'add-child': [parentId: string]
+  edit: [id: string]
+  remove: [id: string]
+  'assign-employee': [deptId: string]
+}>()
 
 const users = useUsersStore()
 const router = useRouter()
@@ -33,6 +38,9 @@ const collapsed = ref(false)
         <button type="button" title="Сотрудники подразделения" @click="router.push({ path: '/employees', query: { dept: node.id } })">
           <Users :size="14" />
         </button>
+        <button type="button" title="Назначить сотрудника в это подразделение" @click="emit('assign-employee', node.id)">
+          <UserPlus :size="14" />
+        </button>
         <button type="button" title="Добавить дочернее" @click="emit('add-child', node.id)"><Plus :size="14" /></button>
         <button type="button" title="Редактировать" @click="emit('edit', node.id)"><Pencil :size="14" /></button>
         <button type="button" title="Удалить" @click="emit('remove', node.id)"><Trash2 :size="14" /></button>
@@ -49,6 +57,7 @@ const collapsed = ref(false)
         @add-child="(id) => emit('add-child', id)"
         @edit="(id) => emit('edit', id)"
         @remove="(id) => emit('remove', id)"
+        @assign-employee="(id) => emit('assign-employee', id)"
       />
     </template>
   </div>

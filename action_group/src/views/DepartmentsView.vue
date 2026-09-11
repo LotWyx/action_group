@@ -107,6 +107,40 @@ async function removeDept(id: string) {
   await departments.remove(id)
   toast.success('Подразделение удалено')
 }
+
+// Assign an existing employee to a department --------------------------------
+const showAssignModal = ref(false)
+const assignDeptId = ref<string | null>(null)
+const assignUserId = ref('')
+const assigning = ref(false)
+
+function openAssign(deptId: string) {
+  assignDeptId.value = deptId
+  assignUserId.value = ''
+  showAssignModal.value = true
+}
+
+const assignUserOptions = computed(() => [
+  { value: '', label: '— выберите сотрудника —' },
+  ...users.items.map((u) => ({
+    value: u.id,
+    label: `${u.fullName} (${u.departmentId ? departments.pathLabel(u.departmentId) : 'без подразделения'})`,
+  })),
+])
+
+async function submitAssign() {
+  if (!assignDeptId.value || !assignUserId.value) return
+  assigning.value = true
+  try {
+    await users.update(assignUserId.value, { departmentId: assignDeptId.value })
+    toast.success('Сотрудник привязан к подразделению')
+    showAssignModal.value = false
+  } catch (e) {
+    toast.error(e instanceof Error ? e.message : 'Не удалось привязать сотрудника')
+  } finally {
+    assigning.value = false
+  }
+}
 </script>
 
 <template>
@@ -135,6 +169,7 @@ async function removeDept(id: string) {
         @add-child="openCreate"
         @edit="openEdit"
         @remove="removeDept"
+        @assign-employee="openAssign"
       />
     </BaseCard>
 
@@ -148,6 +183,20 @@ async function removeDept(id: string) {
       <template #footer>
         <BaseButton variant="secondary" @click="showModal = false">Отмена</BaseButton>
         <BaseButton :loading="saving" @click="submit">Сохранить</BaseButton>
+      </template>
+    </BaseModal>
+
+    <BaseModal
+      v-if="showAssignModal"
+      :title="`Назначить сотрудника в «${assignDeptId ? departments.byId.get(assignDeptId)?.name : ''}»`"
+      @close="showAssignModal = false"
+    >
+      <div class="stack gap-md">
+        <BaseSelect v-model="assignUserId" label="Сотрудник" required :options="assignUserOptions" />
+      </div>
+      <template #footer>
+        <BaseButton variant="secondary" @click="showAssignModal = false">Отмена</BaseButton>
+        <BaseButton :loading="assigning" :disabled="!assignUserId" @click="submitAssign">Назначить</BaseButton>
       </template>
     </BaseModal>
   </div>
