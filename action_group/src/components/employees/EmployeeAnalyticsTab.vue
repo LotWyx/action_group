@@ -60,41 +60,36 @@ const openIssuesCount = computed(() => {
   return unresolvedFromMeetings + missedMeetings.value.length
 })
 
-interface DayEvent {
+interface ScoreEvent {
+  date: string
   delta: number
-  parts: string[]
+  label: string
 }
 
 /**
  * Точные весовые правила графика:
- * 1. Новые проблемы со встречи — минус 1 за каждую.
- * 2. Закрытые проблемы (когда бы их ни закрыли) — плюс 1 за каждую.
+ * 1. Новая проблема со встречи — минус 1 за проблему.
+ * 2. Закрытая проблема (когда бы её ни закрыли) — плюс 1 за проблему.
  * 3. Пропущенная запланированная встреча — минус 1 за встречу.
  * 4. Подтверждённый на встрече навык — плюс 2 за навык.
  * 5. Провал повторной проверки УЖЕ подтверждённого навыка — минус 2.
  *    (Первый провал ещё не подтверждённого навыка — просто "обсудили",
  *    без веса: регресс — это именно потеря уже достигнутого.)
+ *
+ * Важно: у каждого события — своя отдельная свеча, события НЕ суммируются
+ * по дате. Если бы плюс и минус в один день схлопывались в одну общую
+ * свечу, знак определялся бы только их суммой — и, например, подтверждённый
+ * навык (+2) в тот же день, что и новая проблема (−1), спрятал бы эту
+ * проблему за общим зелёным цветом, хотя она осталась открытой.
  */
 const candles = computed(() => {
-  const byDate = new Map<string, DayEvent>()
-  const add = (date: string, delta: number, part: string) => {
-    let e = byDate.get(date)
-    if (!e) {
-      e = { delta: 0, parts: [] }
-      byDate.set(date, e)
-    }
-    e.delta += delta
-    e.parts.push(part)
-  }
-
+  const events: ScoreEvent[] = []
   const employeeMeetings = meetings.forUser(props.employee.id)
 
   for (const m of employeeMeetings) {
-    if (m.problems.length) {
-      add(m.date, -m.problems.length, `−${m.problems.length} ${ru(m.problems.length, 'проблема', 'проблемы', 'проблем')}`)
-    }
     for (const p of m.problems) {
-      if (p.resolved && p.resolvedAt) add(p.resolvedAt, 1, 'закрыта 1 проблема')
+      events.push({ date: m.date, delta: -1, label: 'новая проблема' })
+      if (p.resolved && p.resolvedAt) events.push({ date: p.resolvedAt, delta: 1, label: 'закрыта проблема' })
     }
   }
 
@@ -104,27 +99,31 @@ const candles = computed(() => {
   for (const m of employeeMeetings.slice().sort((a, b) => a.date.localeCompare(b.date))) {
     for (const mark of m.skillMarks) {
       if (mark.confirmed) {
-        add(m.date, 2, `+2 «${skills.name(mark.skillId)}»`)
+        events.push({ date: m.date, delta: 2, label: `подтверждён навык «${skills.name(mark.skillId)}»` })
         confirmedSkills.add(mark.skillId)
       } else if (confirmedSkills.has(mark.skillId)) {
-        add(m.date, -2, `−2 провал повторной проверки «${skills.name(mark.skillId)}»`)
+        events.push({ date: m.date, delta: -2, label: `провал повторной проверки «${skills.name(mark.skillId)}»` })
         confirmedSkills.delete(mark.skillId)
       }
     }
   }
 
   for (const sm of missedMeetings.value) {
-    add(sm.scheduledDate, -1, 'пропущена запланированная встреча')
+    events.push({ date: sm.scheduledDate, delta: -1, label: 'пропущена запланированная встреча' })
   }
 
+  // Стабильная сортировка только по дате: события с одинаковой датой
+  // сохраняют порядок, в котором были добавлены выше (проблемы → навыки →
+  // пропущенные встречи), и остаются отдельными свечами.
+  events.sort((a, b) => a.date.localeCompare(b.date))
+
   let cumulative = 0
-  return [...byDate.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, e]) => {
-      const open = cumulative
-      cumulative += e.delta
-      return { label: formatShortDate(date), open, close: cumulative, breakdown: e.parts.join(', ') }
-    })
+  return events.map((e) => {
+    const open = cumulative
+    cumulative += e.delta
+    const sign = e.delta > 0 ? '+' : ''
+    return { label: formatShortDate(e.date), open, close: cumulative, breakdown: `${sign}${e.delta} ${e.label}` }
+  })
 })
 </script>
 
