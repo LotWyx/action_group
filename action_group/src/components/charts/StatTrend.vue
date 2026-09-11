@@ -30,7 +30,36 @@ const coords = computed(() => {
 })
 
 const baselineY = computed(() => height - padding)
-const linePath = computed(() => coords.value.map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.x} ${c.y}`).join(' '))
+
+/** Smooths a polyline into quadratic-Bezier curves through the midpoint of
+ * each pair of neighbours — the curve still passes exactly through the
+ * first and last points, and stays within each triple's bounding area (no
+ * Catmull-Rom-style overshoot above/below the real values). Also returns
+ * just the final visible segment, so it can be redrawn in the accent
+ * color on top of the muted history. */
+function buildSmoothPath(pts: { x: number; y: number }[]) {
+  if (pts.length === 0) return { full: '', tail: '' }
+  if (pts.length === 1) return { full: `M ${pts[0]!.x} ${pts[0]!.y}`, tail: '' }
+
+  let full = `M ${pts[0]!.x} ${pts[0]!.y}`
+  let tailStart = pts[0]!
+  for (let i = 1; i < pts.length - 1; i++) {
+    const p = pts[i]!
+    const next = pts[i + 1]!
+    const midX = (p.x + next.x) / 2
+    const midY = (p.y + next.y) / 2
+    full += ` Q ${p.x} ${p.y} ${midX} ${midY}`
+    tailStart = { x: midX, y: midY }
+  }
+  const secondLast = pts[pts.length - 2]!
+  const last = pts[pts.length - 1]!
+  full += ` Q ${secondLast.x} ${secondLast.y} ${last.x} ${last.y}`
+  const tail = `M ${tailStart.x} ${tailStart.y} Q ${secondLast.x} ${secondLast.y} ${last.x} ${last.y}`
+  return { full, tail }
+}
+
+const smoothed = computed(() => buildSmoothPath(coords.value))
+const linePath = computed(() => smoothed.value.full)
 const areaPath = computed(() => {
   const first = coords.value[0]
   const last = coords.value[coords.value.length - 1]
@@ -40,13 +69,7 @@ const areaPath = computed(() => {
 // Спек анатомии: история — приглушённым цветом, только последний отрезок
 // (текущее состояние) — акцентным, чтобы не перегружать цветом маленький
 // инлайн-график.
-const lastSegment = computed(() => {
-  const pts = coords.value
-  if (pts.length < 2) return ''
-  const a = pts[pts.length - 2]!
-  const b = pts[pts.length - 1]!
-  return `M ${a.x} ${a.y} L ${b.x} ${b.y}`
-})
+const lastSegment = computed(() => smoothed.value.tail)
 const lastPoint = computed(() => coords.value[coords.value.length - 1] ?? null)
 </script>
 
