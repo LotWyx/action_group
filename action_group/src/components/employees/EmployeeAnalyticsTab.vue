@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { usePlansStore } from '@/stores/plans'
 import { useMeetingsStore } from '@/stores/meetings'
+import { useScheduledMeetingsStore } from '@/stores/scheduledMeetings'
 import { useSkillsStore } from '@/stores/skills'
 import type { User } from '@/types'
 import BaseCard from '@/components/ui/BaseCard.vue'
@@ -19,11 +20,16 @@ const props = defineProps<{ employee: User }>()
 
 const plans = usePlansStore()
 const meetings = useMeetingsStore()
+const scheduledMeetings = useScheduledMeetingsStore()
 const skills = useSkillsStore()
+
+onMounted(() => scheduledMeetings.fetchAll())
 
 const { show: aiShow, loading: aiLoading, error: aiError, text: aiText, open: openAiAnalysis } = useAiAnalysis(
   `/ai/employees/${props.employee.id}`,
 )
+
+const todayIso = new Date().toISOString().slice(0, 10)
 
 const items = computed(() => plans.forUser(props.employee.id))
 const confirmedCount = computed(() => items.value.filter((p) => p.status === 'confirmed').length)
@@ -44,53 +50,71 @@ function ru(n: number, one: string, few: string, many: string) {
   return many
 }
 
+const missedMeetings = computed(() => scheduledMeetings.forUser(props.employee.id).filter((m) => m.scheduledDate < todayIso))
+
 const openIssuesCount = computed(() => {
   const unresolvedFromMeetings = meetings
     .forUser(props.employee.id)
     .flatMap((m) => m.problems)
     .filter((p) => !p.resolved).length
-  return unresolvedFromMeetings + overdue.value.length
+  return unresolvedFromMeetings + missedMeetings.value.length
 })
 
 interface DayEvent {
-  skills: number
-  opened: number
-  closed: number
+  delta: number
+  parts: string[]
 }
 
-// Один общий график вместо двух: по каждой дате события считаем, сколько
-// навыков подтвердили (+), сколько проблем/просрочек появилось (−) и
-// сколько закрылось (+). Каждая "свеча" — это движение итогового счёта от
-// значения до этого события к значению после него, поэтому высота столбика
-// — реальная величина изменения, а не доля от общего максимума (как было
-// раньше со спарклайнами) — провал в пару единиц виден так же чётко, как
-// и рост.
+/**
+ * Точные весовые правила графика:
+ * 1. Новые проблемы со встречи — минус 1 за каждую.
+ * 2. Закрытые проблемы (когда бы их ни закрыли) — плюс 1 за каждую.
+ * 3. Пропущенная запланированная встреча — минус 1 за встречу.
+ * 4. Подтверждённый на встрече навык — плюс 2 за навык.
+ * 5. Провал повторной проверки УЖЕ подтверждённого навыка — минус 2.
+ *    (Первый провал ещё не подтверждённого навыка — просто "обсудили",
+ *    без веса: регресс — это именно потеря уже достигнутого.)
+ */
 const candles = computed(() => {
   const byDate = new Map<string, DayEvent>()
-  const at = (date: string) => {
+  const add = (date: string, delta: number, part: string) => {
     let e = byDate.get(date)
     if (!e) {
-      e = { skills: 0, opened: 0, closed: 0 }
+      e = { delta: 0, parts: [] }
       byDate.set(date, e)
     }
-    return e
+    e.delta += delta
+    e.parts.push(part)
   }
 
-  for (const m of meetings.forUser(props.employee.id)) {
-    const confirmed = m.skillMarks.filter((s) => s.confirmed).length
-    if (confirmed) at(m.date).skills += confirmed
+  const employeeMeetings = meetings.forUser(props.employee.id)
+
+  for (const m of employeeMeetings) {
+    if (m.problems.length) {
+      add(m.date, -m.problems.length, `−${m.problems.length} ${ru(m.problems.length, 'проблема', 'проблемы', 'проблем')}`)
+    }
     for (const p of m.problems) {
-      at(m.date).opened += 1
-      if (p.resolved && p.resolvedAt) at(p.resolvedAt).closed += 1
+      if (p.resolved && p.resolvedAt) add(p.resolvedAt, 1, 'закрыта 1 проблема')
     }
   }
-  for (const item of items.value) {
-    if (item.status === 'problem') {
-      at(item.plannedDate).opened += 1
-    } else if (item.confirmedDate && item.confirmedDate > item.plannedDate) {
-      at(item.plannedDate).opened += 1
-      at(item.confirmedDate).closed += 1
+
+  // Правила 4/5 требуют знать, был ли навык уже подтверждён РАНЬШЕ — идём
+  // по встречам строго по датам и ведём состояние по каждому навыку.
+  const confirmedSkills = new Set<string>()
+  for (const m of employeeMeetings.slice().sort((a, b) => a.date.localeCompare(b.date))) {
+    for (const mark of m.skillMarks) {
+      if (mark.confirmed) {
+        add(m.date, 2, `+2 «${skills.name(mark.skillId)}»`)
+        confirmedSkills.add(mark.skillId)
+      } else if (confirmedSkills.has(mark.skillId)) {
+        add(m.date, -2, `−2 провал повторной проверки «${skills.name(mark.skillId)}»`)
+        confirmedSkills.delete(mark.skillId)
+      }
     }
+  }
+
+  for (const sm of missedMeetings.value) {
+    add(sm.scheduledDate, -1, 'пропущена запланированная встреча')
   }
 
   let cumulative = 0
@@ -98,12 +122,8 @@ const candles = computed(() => {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, e]) => {
       const open = cumulative
-      cumulative += e.skills - e.opened + e.closed
-      const parts: string[] = []
-      if (e.skills) parts.push(`+${e.skills} ${ru(e.skills, 'навык', 'навыка', 'навыков')}`)
-      if (e.opened) parts.push(`−${e.opened} ${ru(e.opened, 'проблема', 'проблемы', 'проблем')}`)
-      if (e.closed) parts.push(`закрыто ${e.closed} ${ru(e.closed, 'проблема', 'проблемы', 'проблем')}`)
-      return { label: formatShortDate(date), open, close: cumulative, breakdown: parts.join(', ') }
+      cumulative += e.delta
+      return { label: formatShortDate(date), open, close: cumulative, breakdown: e.parts.join(', ') }
     })
 })
 </script>
