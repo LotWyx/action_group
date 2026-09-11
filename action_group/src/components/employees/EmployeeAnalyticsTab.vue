@@ -7,7 +7,7 @@ import type { User } from '@/types'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
 import DonutProgress from '@/components/charts/DonutProgress.vue'
-import TrendBars from '@/components/charts/TrendBars.vue'
+import StatTrend from '@/components/charts/StatTrend.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import AchievementBadges from '@/components/employees/AchievementBadges.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -35,52 +35,65 @@ function formatShortDate(iso: string) {
   return `${day}.${month}`
 }
 
-// Успеваемость считается не только по подтверждённым навыкам: каждая
-// заведённая на встрече проблема (независимо от того, был ли на той же
-// встрече прогресс по другим навыкам) сразу снижает значение на 1, а её
-// закрытие (когда бы оно ни произошло) возвращает 1 обратно — так график
-// реагирует и на рост, и на провалы, а не только на успехи. Отдельно
-// учитывается просрочка плана: как только плановая дата навыка проходит
-// без подтверждения — минус 1 с даты дедлайна (даже без явной проблемы на
-// встрече); если навык всё же подтвердили позже срока, плюс за само
-// подтверждение уже начислен ниже по дате встречи, а здесь на дату
-// подтверждения добавляется только компенсация временной просрочки —
-// на графике это видно как провал, который затем восстанавливается.
-const trendPoints = computed(() => {
+/** Turns a map of {date -> delta} into a running total over time, starting
+ * from a true zero before anything happened — a plain, literal count a
+ * manager reads at a glance, not an abstract score. */
+function buildSeries(byDate: Map<string, number>, clampAtZero = false) {
+  const dates = [...byDate.keys()].sort()
+  const points = [{ label: 'Старт', value: 0 }]
+  let cumulative = 0
+  for (const date of dates) {
+    cumulative += byDate.get(date) ?? 0
+    if (clampAtZero) cumulative = Math.max(0, cumulative)
+    points.push({ label: formatShortDate(date), value: cumulative })
+  }
+  return points
+}
+
+// Сколько навыков подтверждено на сегодня, по датам встреч — всегда растёт.
+const skillsSeries = computed(() => {
+  const byDate = new Map<string, number>()
+  for (const m of meetings.forUser(props.employee.id)) {
+    const confirmed = m.skillMarks.filter((s) => s.confirmed).length
+    if (confirmed) byDate.set(m.date, (byDate.get(m.date) ?? 0) + confirmed)
+  }
+  return buildSeries(byDate)
+})
+
+// Сколько проблем сейчас открыто: явные проблемы со встреч (пока не
+// отмечены решёнными) и навыки с просроченной плановой датой, которые ещё
+// не подтвердили. Число реально открытых проблем на сегодня — растёт,
+// когда проблема появляется, и падает, когда её закрывают/подтверждают.
+const issuesSeries = computed(() => {
   const byDate = new Map<string, number>()
   const bump = (date: string, delta: number) => byDate.set(date, (byDate.get(date) ?? 0) + delta)
 
   for (const m of meetings.forUser(props.employee.id)) {
-    const confirmed = m.skillMarks.filter((s) => s.confirmed).length
-    if (confirmed) bump(m.date, confirmed)
     for (const p of m.problems) {
-      bump(m.date, -1)
-      if (p.resolved && p.resolvedAt) bump(p.resolvedAt, 1)
+      bump(m.date, 1)
+      if (p.resolved && p.resolvedAt) bump(p.resolvedAt, -1)
     }
   }
-
   for (const item of items.value) {
     if (item.status === 'problem') {
-      bump(item.plannedDate, -1)
+      bump(item.plannedDate, 1)
     } else if (item.confirmedDate && item.confirmedDate > item.plannedDate) {
-      bump(item.plannedDate, -1)
-      bump(item.confirmedDate, 1)
+      bump(item.plannedDate, 1)
+      bump(item.confirmedDate, -1)
     }
   }
-
-  const dates = [...byDate.keys()].sort()
-  // Стартовая точка — нейтральный ноль перед первой встречей, чтобы график
-  // не начинался «с воздуха»: первая реальная встреча становится второй
-  // точкой графика, и уже видна динамика (рост/просадка), а не одна точка.
-  const points = [{ label: 'Старт', value: 0, delta: 0 }]
-  let cumulative = 0
-  for (const date of dates) {
-    const delta = byDate.get(date) ?? 0
-    cumulative += delta
-    points.push({ label: formatShortDate(date), value: cumulative, delta })
-  }
-  return points
+  return buildSeries(byDate, true)
 })
+
+const openIssuesCount = computed(() => {
+  const unresolvedFromMeetings = meetings
+    .forUser(props.employee.id)
+    .flatMap((m) => m.problems)
+    .filter((p) => !p.resolved).length
+  return unresolvedFromMeetings + overdue.value.length
+})
+
+const hasTrendData = computed(() => skillsSeries.value.length > 1 || issuesSeries.value.length > 1)
 </script>
 
 <template>
@@ -108,8 +121,11 @@ const trendPoints = computed(() => {
     <AchievementBadges :employee="employee" />
 
     <BaseCard>
-      <p class="text-sm text-muted" style="margin-bottom: 10px">Динамика успеваемости (навыки, проблемы и просрочки)</p>
-      <TrendBars v-if="trendPoints.length > 1" :points="trendPoints" />
+      <p class="text-sm text-muted" style="margin-bottom: 14px">Динамика</p>
+      <div v-if="hasTrendData" class="trend-grid">
+        <StatTrend label="Подтверждено навыков" :value="confirmedCount" accent="var(--color-success)" :points="skillsSeries" />
+        <StatTrend label="Проблемы и просрочки" :value="openIssuesCount" accent="var(--color-danger)" :points="issuesSeries" />
+      </div>
       <EmptyState v-else :icon="TrendingUp" title="Пока недостаточно данных" description="После первой встречи здесь появится график" />
     </BaseCard>
 
@@ -132,6 +148,11 @@ const trendPoints = computed(() => {
   font-size: 26px;
   font-weight: 800;
   margin: 4px 0;
+}
+.trend-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
 }
 .lag-list {
   list-style: none;
@@ -158,6 +179,10 @@ const trendPoints = computed(() => {
 @media (max-width: 560px) {
   .grid {
     grid-template-columns: 1fr !important;
+  }
+  .trend-grid {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
   }
 }
 </style>
