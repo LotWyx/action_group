@@ -226,7 +226,7 @@ async function submit() {
           v-if="row.scope === 'skill'"
           v-model="row.skillId"
           placeholder="Навык"
-          :options="skills.forDirection(employee.directionId).map((s) => ({ value: s.id, label: s.name }))"
+          :options="skillMarks.map((m) => ({ value: m.skillId, label: skills.name(m.skillId) }))"
         />
         <BaseInput v-model="row.comment" placeholder="Комментарий" />
         <button type="button" class="remove-btn" @click="removeProblem(idx)"><X :size="14" /></button>
