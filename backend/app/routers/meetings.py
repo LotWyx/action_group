@@ -78,32 +78,39 @@ async def create_meeting(
         )
 
     # Confirming a skill during the meeting updates (or creates) the matching
-    # training-plan entry, mirroring plansService._confirmFromMeeting.
+    # training-plan entry, mirroring plansService._confirmFromMeeting. A
+    # re-check that comes back unconfirmed reverts an already-confirmed
+    # entry instead of being silently ignored — otherwise a skill someone
+    # previously passed would keep showing as confirmed forever even after
+    # they fail a later re-check.
     for m in payload.skill_marks:
-        if not m.confirmed:
-            continue
         existing = await db.execute(
             select(models.PlanItem).where(
                 models.PlanItem.user_id == payload.employee_id, models.PlanItem.skill_id == m.skill_id
             )
         )
         item = existing.scalar_one_or_none()
-        if item:
-            item.confirmed = True
-            item.confirmed_date = payload.date
-            item.confirmed_in_meeting_id = meeting.id
-        else:
-            db.add(
-                models.PlanItem(
-                    id=new_id("plan"),
-                    user_id=payload.employee_id,
-                    skill_id=m.skill_id,
-                    planned_date=payload.date,
-                    confirmed=True,
-                    confirmed_date=payload.date,
-                    confirmed_in_meeting_id=meeting.id,
+        if m.confirmed:
+            if item:
+                item.confirmed = True
+                item.confirmed_date = payload.date
+                item.confirmed_in_meeting_id = meeting.id
+            else:
+                db.add(
+                    models.PlanItem(
+                        id=new_id("plan"),
+                        user_id=payload.employee_id,
+                        skill_id=m.skill_id,
+                        planned_date=payload.date,
+                        confirmed=True,
+                        confirmed_date=payload.date,
+                        confirmed_in_meeting_id=meeting.id,
+                    )
                 )
-            )
+        elif item and item.confirmed:
+            item.confirmed = False
+            item.confirmed_date = None
+            item.confirmed_in_meeting_id = None
 
     # A protocol now exists for this employee up to this date, so any
     # scheduled ("upcoming") meeting due by then is stale — drop it from the
