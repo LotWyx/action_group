@@ -1,13 +1,7 @@
-// Domain types for the Performance Review system.
 // Field-for-field mirror of the FastAPI backend's Pydantic response schemas
 // (see backend/app/schemas.py, which camelCase-aliases everything to match).
 
-/**
- * Directions (BACK/FRONT/QA and whatever an admin adds later) are data, not a
- * hardcoded enum: the case requires the skill catalog's directions themselves
- * to be editable (add/rename/remove), so they live in the same mock/service
- * layer as everything else.
- */
+// Data, not a hardcoded enum: directions must be admin-editable.
 export interface SkillDirection {
   id: string
   name: string

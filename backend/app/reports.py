@@ -7,9 +7,8 @@ from fpdf import FPDF
 from openpyxl import Workbook
 from openpyxl.styles import Font
 
-# Bundled by the `fonts-dejavu-core` apt package installed in the backend
-# Dockerfile — fpdf2's built-in core fonts are Latin-1 only and can't render
-# Cyrillic, so every PDF report needs this (or another Unicode TTF) embedded.
+# fpdf2's core fonts are Latin-1 only, so Cyrillic needs this embedded
+# (bundled via the `fonts-dejavu-core` apt package in the Dockerfile).
 _DEJAVU_REGULAR = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 _DEJAVU_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 

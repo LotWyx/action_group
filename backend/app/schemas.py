@@ -4,9 +4,9 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 
-# Every response schema below mirrors src/types/index.ts field-for-field (via
-# camelCase aliasing) so the frontend needs zero type changes when switching
-# from the localStorage mock to this API.
+# Every schema below mirrors src/types/index.ts field-for-field via camelCase
+# aliasing, so the frontend needed zero type changes when it switched from
+# the localStorage mock to this API.
 
 
 class CamelModel(BaseModel):

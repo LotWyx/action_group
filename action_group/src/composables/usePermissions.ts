@@ -3,13 +3,9 @@ import { useAuthStore } from '@/stores/auth'
 import { useUsersStore } from '@/stores/users'
 import { useDepartmentsStore } from '@/stores/departments'
 
-/**
- * Access in this system is NOT a fixed role on the user — it is derived from
- * where the viewer sits in the department tree relative to the profile being
- * opened. The same person can manage their subordinates' PR while also being
- * a subordinate themselves in their own manager's PR. Every check below is
- * therefore a function of (viewerId, targetId), never a static role flag.
- */
+// Access is not a fixed role — it's derived from the viewer's position in
+// the department tree relative to the profile being viewed, so every check
+// below is a function of (viewerId, targetId), never a static role flag.
 export function usePermissions() {
   const auth = useAuthStore()
   const users = useUsersStore()

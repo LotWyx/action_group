@@ -1,20 +1,3 @@
-"""Optional integration with VK community (group) messages
-(https://dev.vk.com/ru/method/messages.send).
-
-Configure VK_BOT_TOKEN (a community access token with the "Сообщения
-сообщества" permission) to enable it. Without a token every call here is a
-silent no-op, so the rest of the app works identically whether or not the
-integration is set up. Each user opts in by saving their own VK numeric user
-id from the "Уведомления ВКонтакте" card on the dashboard — VK only lets a
-community message a user who has already written to it or allowed messages
-from it.
-
-API shape: POST https://api.vk.com/method/messages.send with `access_token`,
-`v` (API version), `user_id`, `message`, `random_id` (dedupe key). VK always
-replies with HTTP 200; success/failure is in the JSON body
-(`{"response": <message_id>}` vs `{"error": {...}}`).
-"""
-
 import logging
 import random
 

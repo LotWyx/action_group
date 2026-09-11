@@ -77,12 +77,8 @@ async def create_meeting(
             )
         )
 
-    # Confirming a skill during the meeting updates (or creates) the matching
-    # training-plan entry, mirroring plansService._confirmFromMeeting. A
-    # re-check that comes back unconfirmed reverts an already-confirmed
-    # entry instead of being silently ignored — otherwise a skill someone
-    # previously passed would keep showing as confirmed forever even after
-    # they fail a later re-check.
+    # A failed re-check reverts an already-confirmed plan entry instead of
+    # being ignored, so a past pass doesn't linger forever after a regression.
     for m in payload.skill_marks:
         existing = await db.execute(
             select(models.PlanItem).where(
@@ -112,10 +108,7 @@ async def create_meeting(
             item.confirmed_date = None
             item.confirmed_in_meeting_id = None
 
-    # A protocol now exists for this employee up to this date, so any
-    # scheduled ("upcoming") meeting due by then is stale — drop it from the
-    # timeline instead of leaving a phantom "planned" entry next to the
-    # protocol that just replaced it.
+    # A protocol now covers this date, so any scheduled meeting due by then is stale.
     stale = await db.execute(
         select(models.ScheduledMeeting).where(
             models.ScheduledMeeting.employee_id == payload.employee_id,

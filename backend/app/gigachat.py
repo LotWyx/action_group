@@ -1,21 +1,3 @@
-"""Optional integration with GigaChat (https://developers.sber.ru/docs/ru/gigachat) —
-a free-tier Russian LLM (GIGACHAT_API_PERS scope grants ~750K free tokens/year
-for individuals) used for the employee/department AI-analysis feature.
-
-Configure GIGACHAT_AUTH_KEY (the base64 "Authorization key" from the GigaChat
-project console) to enable it. Without it, every call here is a no-op, same
-pattern as app/vk_notify.py.
-
-OAuth: POST https://ngw.devices.sberbank.ru:9443/api/v2/oauth
-  headers: Authorization: Basic <auth_key>, RqUID: <uuid4>
-  body (form): scope=<GIGACHAT_API_PERS|...>
-  -> {"access_token": "...", "expires_at": <ms epoch>}  (token lives ~30 min)
-
-Completion: POST https://gigachat.devices.sberbank.ru/api/v1/chat/completions
-  headers: Authorization: Bearer <access_token>
-  body (json): {"model": "GigaChat", "messages": [...]}
-"""
-
 import logging
 import time
 import uuid

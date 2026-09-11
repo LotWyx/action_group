@@ -10,11 +10,7 @@ export interface Achievement {
   earned: boolean
 }
 
-/**
- * Lightweight gamification layer: badges are pure derived data (never
- * stored), computed from the employee's own plan/meeting history. Nothing
- * to seed, nothing to keep in sync with the backend.
- */
+// Badges are pure derived data, computed from plan/meeting history — nothing stored or seeded.
 export function computeAchievements(planItems: PlanItem[], meetings: Meeting[]): Achievement[] {
   const confirmed = planItems.filter((p) => p.status === 'confirmed').length
   const hasProblems = planItems.some((p) => p.status === 'problem')
