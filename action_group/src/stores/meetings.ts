@@ -33,7 +33,10 @@ export const useMeetingsStore = defineStore('meetings', () => {
     await meetingsService.setProblemResolved(meetingId, problemId, resolved)
     const meeting = items.value.find((m) => m.id === meetingId)
     const problem = meeting?.problems.find((p) => p.id === problemId)
-    if (problem) problem.resolved = resolved
+    if (problem) {
+      problem.resolved = resolved
+      problem.resolvedAt = resolved ? new Date().toISOString().slice(0, 10) : null
+    }
   }
 
   return { items, loaded, loading, fetchAll, forUser, create, setProblemResolved }
