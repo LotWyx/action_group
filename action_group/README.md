@@ -1,48 +1,89 @@
-# action_group
+# Performance Review — фронтенд (Кейс 4 «Я хочу развиваться»)
 
-This template should help get you started developing with Vue 3 in Vite.
+Система мониторинга развития технических навыков команды: годовое планирование
+обучения, протоколы PR-встреч (1:1), древовидная структура подразделений с
+правами, зависящими от положения в дереве, и аналитика по прогрессу.
 
-## Recommended IDE Setup
+Vue 3 + TypeScript + Vite + Pinia + Vue Router, поверх FastAPI-бэкенда
+(`../backend`). Быстрее всего поднять весь стек целиком через
+[Docker Compose из корня репозитория](../README.md) — там же демо-доступы.
+Ниже — как запускать один фронтенд отдельно, для разработки.
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+## Запуск фронтенда отдельно
 
-## Recommended Browser Setup
-
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
-
-## Type Support for `.vue` Imports in TS
-
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
+Нужен уже запущенный backend (см. `../backend/README` в корневом README) —
+локально через `uvicorn` или в докере.
 
 ```sh
 npm install
+npm run dev      # http://localhost:5173, /api проксируется на localhost:8000
+npm run build    # проверка типов + production-сборка
+npm run lint     # oxlint + eslint
 ```
 
-### Compile and Hot-Reload for Development
+`vite.config.ts` проксирует `/api/*` на `http://localhost:8000` — тот же
+префикс, что в проде проксирует nginx в докер-образе, так что
+`src/api/http.ts` не нужно ничего знать про окружение.
 
-```sh
-npm run dev
+## Архитектура
+
+```
+src/
+  types/            доменные типы (User, Department, Skill, Meeting, PlanItem…),
+                    один в один с camelCase-полями, которые отдаёт FastAPI
+  api/               тонкие обёртки над axios (http.ts) — один файл на сущность
+  stores/            Pinia-сторы поверх сервисов (auth, users, departments,
+                     skills, directions, plans, meetings, scheduledMeetings)
+  composables/
+    usePermissions.ts   вся логика прав, завязанная на дерево подразделений
+    useMarkdown.ts       рендер markdown в протоколах встреч (marked + DOMPurify)
+    useAchievements.ts   расчёт бейджей-достижений из плана/встреч (без бэкенда)
+    useAiAnalysis.ts / useFileDownload.ts   AI-анализ (GigaChat) и экспорт xlsx/pdf
+    useToast.ts / useConfirm.ts   лёгкие UI-примитивы без сторонних библиотек
+  components/
+    ui/                переиспользуемый UI-кит (кнопки, поля, модалки, AI-анализ…)
+    layout/             адаптивный каркас: сайдбар на десктопе, нижняя
+                        навигация на телефоне
+    departments/         рекурсивное дерево подразделений
+    employees/            вкладки профиля сотрудника (план/встречи/проблемы/аналитика),
+                          бейджи-достижения
+    charts/               лёгкие SVG-графики без внешних чарт-библиотек
+    dashboard/             карточка настроек уведомлений ВКонтакте
+  views/              экраны, подключённые к вотеру
 ```
 
-### Type-Check, Compile and Minify for Production
+Иконки — [`@lucide/vue`](https://lucide.dev) везде вместо эмодзи (навигация,
+кнопки действий, пустые состояния, шевроны и т.п.).
 
-```sh
-npm run build
-```
+## Реализованный функционал (обязательные пункты кейса)
 
-### Lint with [ESLint](https://eslint.org/)
+1. **Пользователи** — аутентификация (JWT), CRUD, привязка к
+   подразделению и направлению (`/users`, только администратор).
+2. **Структура подразделений** — дерево произвольной вложенности, CRUD,
+   назначение руководителя, перенос узла/сотрудника в другой узел (`/departments`).
+3. **Права относительно сотрудника, а не роли** — логика в
+   `usePermissions.ts` на фронте **и** зеркально в `backend/app/permissions.py`
+   на бэкенде (проверяется на каждой записи, не только в интерфейсе).
+4. **PR-встречи** — протокол с датой, markdown-итогами, вложениями
+   (файл/ссылка), отметками по скиллам и проблемами (`/employees/:id/meetings/new`).
+5. **Справочник навыков** — направления и скиллы, редактируемые
+   администратором; на его основе строится годовой план сотрудника (`/skills`).
+6. **Аналитика** — по подразделению (прогресс, % выполнения плана, открытые
+   проблемы) и по сотруднику (динамика зачтённых скиллов, отставание от
+   плановых дат); список сотрудников с фильтрами по направлению/подразделению
+   вынесен в отдельный экран `/employees`.
 
-```sh
-npm run lint
-```
+Дополнительно (подробности — в корневом README):
+- планирование будущих PR-встреч и таймлайн (вкладка «Встречи» профиля +
+  сводка по команде на экране «Аналитика»);
+- геймификация — бейджи-достижения в профиле сотрудника;
+- экспорт отчёта по сотруднику/подразделению в Excel и PDF;
+- AI-анализ сотрудника и подразделения на GigaChat;
+- уведомления ВКонтакте (карточка на главном экране).
+
+## Адаптивность
+
+Мобильная раскладка (< 861px): нижняя навигация, модалки-шторки снизу,
+таблицы/сетки схлопываются в карточки/одну колонку. Десктоп (≥ 861px):
+боковой сайдбар, модалки по центру, многоколоночные сетки. Проверено вручную
+в Chromium на 390×844 и 1280–1400px.
