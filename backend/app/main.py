@@ -18,10 +18,8 @@ logging.basicConfig(level=logging.INFO)
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        # Additive, idempotent column migrations for databases created before
-        # a model field was added — there's no Alembic in this project, and
-        # create_all never alters existing tables, so new nullable columns
-        # are patched in here instead of requiring a destructive DB reset.
+        # No Alembic here, and create_all doesn't alter existing tables, so
+        # new columns are patched in manually instead of a DB reset.
         await conn.execute(text("ALTER TABLE problem_flags ADD COLUMN IF NOT EXISTS resolved_at DATE"))
     async with SessionLocal() as db:
         await seed_if_empty(db)

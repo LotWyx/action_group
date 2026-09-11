@@ -1,9 +1,7 @@
 import axios from 'axios'
 
-// Axios client for the FastAPI backend. In dev, Vite proxies /api to the
-// backend (see vite.config.ts); in the Docker image, nginx does the same
-// proxying in front of the built static files — so the default baseURL
-// works unchanged in both environments.
+// Default baseURL works unchanged in dev (Vite proxy) and prod (nginx),
+// both proxying /api to the backend — see vite.config.ts / nginx.conf.
 export const http = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? '/api',
   timeout: 15000,
@@ -22,10 +20,8 @@ http.interceptors.request.use((config) => {
   return config
 })
 
-// FastAPI's HTTPException responses look like {"detail": "..."}. Promoting
-// that into the error's `message` means every existing
-// `e instanceof Error ? e.message : '...'` call site across the app already
-// shows the backend's friendly Russian message without any further changes.
+// Promote FastAPI's {"detail": "..."} into error.message so existing
+// `e instanceof Error ? e.message : ...` call sites show it as-is.
 http.interceptors.response.use(
   (response) => response,
   (error) => {
