@@ -252,6 +252,11 @@ class AiAnalysisOut(BaseModel):
     text: str
 
 
+class TranscribeMeetingOut(CamelModel):
+    transcript: str
+    summary_markdown: str
+
+
 # --- Auth -----------------------------------------------------------------------
 
 

@@ -1,12 +1,30 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+import logging
+import os
+import tempfile
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .. import gigachat, models, reports, schemas
+from .. import gigachat, models, permissions, reports, schemas, transcription
 from ..database import get_db
 from ..deps import get_current_user
 from .export import gather_department_report_data, gather_employee_report_data
 
 router = APIRouter(prefix="/ai", tags=["ai"])
+logger = logging.getLogger("ai")
+
+MAX_AUDIO_BYTES = 30 * 1024 * 1024
+
+TRANSCRIBE_SYSTEM_PROMPT = (
+    "Ты помогаешь руководителю оформить итоги PR-встречи (performance review) по "
+    "автоматической расшифровке аудиозаписи. Расшифровка может содержать ошибки "
+    "распознавания речи, слова-паразиты и незаконченные фразы — исправляй их по смыслу, "
+    "но не добавляй фактов, которых нет в тексте. Оформи результат как аккуратный "
+    "markdown-конспект с заголовками (###) и списками, структурированный по темам "
+    "обсуждения; отдельно вынеси договорённости и следующие шаги, если они есть. "
+    "Пиши только сам конспект, без вступлений и пояснений от себя."
+)
 
 SYSTEM_PROMPT = (
     "Ты — ассистент руководителя разработки, помогаешь анализировать развитие сотрудников "
@@ -100,3 +118,45 @@ async def analyze_department(dept_id: str, db: AsyncSession = Depends(get_db), u
     if text is None:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Не удалось получить ответ от GigaChat")
     return schemas.AiAnalysisOut(text=text)
+
+
+@router.post("/meetings/transcribe", response_model=schemas.TranscribeMeetingOut)
+async def transcribe_meeting_audio(
+    employee_id: str = Form(..., alias="employeeId"),
+    audio: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    if not await permissions.can_manage(db, user, employee_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Недостаточно прав для этого сотрудника")
+    if not gigachat.is_configured():
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "GigaChat не настроен на сервере (GIGACHAT_AUTH_KEY)")
+
+    contents = await audio.read()
+    if not contents:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Пустой файл")
+    if len(contents) > MAX_AUDIO_BYTES:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, f"Аудио слишком большое (максимум {MAX_AUDIO_BYTES // (1024 * 1024)} МБ)"
+        )
+
+    suffix = os.path.splitext(audio.filename or "")[1] or ".audio"
+    with tempfile.NamedTemporaryFile(suffix=suffix) as tmp:
+        tmp.write(contents)
+        tmp.flush()
+        try:
+            # CPU-bound and can take a while on a small server — never run this
+            # directly in an async def, it would freeze every other request.
+            raw_text = await run_in_threadpool(transcription.transcribe, tmp.name)
+        except Exception:
+            logger.exception("Whisper transcription failed")
+            raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Не удалось распознать аудио")
+
+    if not raw_text:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "В аудио не распознано речи")
+
+    structured = await gigachat.complete(TRANSCRIBE_SYSTEM_PROMPT, raw_text)
+    if structured is None:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Не удалось получить ответ от GigaChat")
+
+    return schemas.TranscribeMeetingOut(transcript=raw_text, summary_markdown=structured)

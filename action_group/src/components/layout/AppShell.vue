@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { watchEffect } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useUsersStore } from '@/stores/users'
 import { useDepartmentsStore } from '@/stores/departments'
@@ -9,10 +9,11 @@ import BottomNav from './BottomNav.vue'
 
 // Nav visibility depends on usePermissions().hasSubordinates, which needs
 // these two stores loaded regardless of which view mounts first. AppShell
-// can mount briefly before the router's initial navigation resolves
-// (vue-router's START_LOCATION has no meta yet), so skip while logged out
-// and swallow errors — a real, authenticated view will fetch these anyway.
-onMounted(() => {
+// can mount before auth.init() resolves (a cold load straight into a
+// protected route never toggles the shell's v-if again once mounted), so
+// this must react to isAuthenticated turning true rather than check it
+// once in onMounted — a one-shot check can permanently miss the fetch.
+watchEffect(() => {
   if (!useAuthStore().isAuthenticated) return
   useUsersStore().fetchAll().catch(() => {})
   useDepartmentsStore().fetchAll().catch(() => {})
