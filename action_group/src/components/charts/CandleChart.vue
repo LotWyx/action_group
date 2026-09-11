@@ -9,14 +9,18 @@ const props = withDefaults(
   { height: 140 },
 )
 
-const width = 480
-const padding = 18
-const gap = 4
+const padding = 14
+const barWidth = 18
+const gap = 6
+const slot = barWidth + gap
 
-// В отличие от спарклайна, который растягивался по своему же максимуму (и
-// тем самым прятал небольшие провалы), здесь у каждой свечи высота — это
-// её РЕАЛЬНАЯ величина движения (open -> close), а не доля от общего
-// диапазона. Ноль всегда попадает в область графика как опорная линия.
+// Плотная раскладка: ширина графика — ровно столько, сколько нужно для
+// реального числа свечей с фиксированным шагом, а не растянутая на всю
+// карточку (иначе при малом числе событий между столбиками остаются
+// огромные пустые промежутки). Если свечей много, график просто становится
+// шире и скроллится — контейнер оборачивает его в overflow-x: auto.
+const width = computed(() => Math.max(padding * 2 + barWidth, padding * 2 + props.candles.length * slot - gap))
+
 const domain = computed(() => {
   const values = props.candles.flatMap((c) => [c.open, c.close])
   const min = Math.min(0, ...values)
@@ -33,37 +37,36 @@ function valueToY(value: number) {
 
 const zeroY = computed(() => valueToY(0))
 
-const bars = computed(() => {
-  const n = props.candles.length
-  if (n === 0) return []
-  const slot = (width - padding * 2) / n
-  const barWidth = Math.max(3, Math.min(24, slot - gap))
-  return props.candles.map((c, i) => {
-    const x = padding + slot * i + (slot - barWidth) / 2
+const bars = computed(() =>
+  props.candles.map((c, i) => {
+    const x = padding + slot * i
     const yOpen = valueToY(c.open)
     const yClose = valueToY(c.close)
     const y = Math.min(yOpen, yClose)
     const h = Math.max(2, Math.abs(yOpen - yClose))
     const good = c.close >= c.open
     return { x, y, width: barWidth, height: h, good, ...c }
-  })
-})
+  }),
+)
 </script>
 
 <template>
-  <svg v-if="candles.length" :viewBox="`0 0 ${width} ${height}`" class="candles" preserveAspectRatio="none" role="img" aria-label="Динамика по встречам">
-    <line :x1="padding" :x2="width - padding" :y1="zeroY" :y2="zeroY" class="candles__zero" />
-    <g v-for="(b, i) in bars" :key="i">
-      <rect :x="b.x" :y="b.y" :width="b.width" :height="b.height" :fill="b.good ? 'var(--color-success)' : 'var(--color-danger)'" rx="2" />
-      <title>{{ b.label }}{{ b.breakdown ? ': ' + b.breakdown : ' — без изменений' }}</title>
-    </g>
-  </svg>
+  <div v-if="candles.length" class="candles-scroll">
+    <svg :width="width" :height="height" :viewBox="`0 0 ${width} ${height}`" class="candles" role="img" aria-label="Динамика по встречам">
+      <line :x1="padding" :x2="width - padding" :y1="zeroY" :y2="zeroY" class="candles__zero" />
+      <g v-for="(b, i) in bars" :key="i">
+        <rect :x="b.x" :y="b.y" :width="b.width" :height="b.height" :fill="b.good ? 'var(--color-success)' : 'var(--color-danger)'" rx="2" />
+        <title>{{ b.label }}{{ b.breakdown ? ': ' + b.breakdown : ' — без изменений' }}</title>
+      </g>
+    </svg>
+  </div>
 </template>
 
 <style scoped>
+.candles-scroll {
+  overflow-x: auto;
+}
 .candles {
-  width: 100%;
-  height: 140px;
   display: block;
 }
 .candles__zero {
