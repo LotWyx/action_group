@@ -39,7 +39,13 @@ function formatShortDate(iso: string) {
 // заведённая на встрече проблема (независимо от того, был ли на той же
 // встрече прогресс по другим навыкам) сразу снижает значение на 1, а её
 // закрытие (когда бы оно ни произошло) возвращает 1 обратно — так график
-// реагирует и на рост, и на провалы, а не только на успехи.
+// реагирует и на рост, и на провалы, а не только на успехи. Отдельно
+// учитывается просрочка плана: как только плановая дата навыка проходит
+// без подтверждения — минус 1 с даты дедлайна (даже без явной проблемы на
+// встрече); если навык всё же подтвердили позже срока, плюс за само
+// подтверждение уже начислен ниже по дате встречи, а здесь на дату
+// подтверждения добавляется только компенсация временной просрочки —
+// на графике это видно как провал, который затем восстанавливается.
 const trendPoints = computed(() => {
   const byDate = new Map<string, number>()
   const bump = (date: string, delta: number) => byDate.set(date, (byDate.get(date) ?? 0) + delta)
@@ -50,6 +56,15 @@ const trendPoints = computed(() => {
     for (const p of m.problems) {
       bump(m.date, -1)
       if (p.resolved && p.resolvedAt) bump(p.resolvedAt, 1)
+    }
+  }
+
+  for (const item of items.value) {
+    if (item.status === 'problem') {
+      bump(item.plannedDate, -1)
+    } else if (item.confirmedDate && item.confirmedDate > item.plannedDate) {
+      bump(item.plannedDate, -1)
+      bump(item.confirmedDate, 1)
     }
   }
 
@@ -93,7 +108,7 @@ const trendPoints = computed(() => {
     <AchievementBadges :employee="employee" />
 
     <BaseCard>
-      <p class="text-sm text-muted" style="margin-bottom: 10px">Динамика успеваемости (навыки и проблемы по встречам)</p>
+      <p class="text-sm text-muted" style="margin-bottom: 10px">Динамика успеваемости (навыки, проблемы и просрочки)</p>
       <TrendBars v-if="trendPoints.length > 1" :points="trendPoints" />
       <EmptyState v-else :icon="TrendingUp" title="Пока недостаточно данных" description="После первой встречи здесь появится график" />
     </BaseCard>
