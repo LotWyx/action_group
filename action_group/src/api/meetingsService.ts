@@ -7,7 +7,7 @@ export interface MeetingInput {
   summaryMarkdown: string
   attachments: Omit<Attachment, 'id'>[]
   skillMarks: SkillMark[]
-  problems: Omit<ProblemFlag, 'id'>[]
+  problems: Omit<ProblemFlag, 'id' | 'resolvedAt'>[]
 }
 
 export const meetingsService = {

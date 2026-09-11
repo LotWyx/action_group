@@ -7,7 +7,7 @@ import type { User } from '@/types'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
 import DonutProgress from '@/components/charts/DonutProgress.vue'
-import TrendLine from '@/components/charts/TrendLine.vue'
+import TrendBars from '@/components/charts/TrendBars.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import AchievementBadges from '@/components/employees/AchievementBadges.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -30,13 +30,41 @@ const confirmedCount = computed(() => items.value.filter((p) => p.status === 'co
 const progress = computed(() => (items.value.length ? Math.round((confirmedCount.value / items.value.length) * 100) : 0))
 const overdue = computed(() => items.value.filter((p) => p.status === 'problem'))
 
+function formatShortDate(iso: string) {
+  const [, month, day] = iso.split('-')
+  return `${day}.${month}`
+}
+
+// Успеваемость считается не только по подтверждённым навыкам: каждая
+// заведённая на встрече проблема (независимо от того, был ли на той же
+// встрече прогресс по другим навыкам) сразу снижает значение на 1, а её
+// закрытие (когда бы оно ни произошло) возвращает 1 обратно — так график
+// реагирует и на рост, и на провалы, а не только на успехи.
 const trendPoints = computed(() => {
-  const list = meetings.forUser(props.employee.id).slice().sort((a, b) => a.date.localeCompare(b.date))
+  const byDate = new Map<string, number>()
+  const bump = (date: string, delta: number) => byDate.set(date, (byDate.get(date) ?? 0) + delta)
+
+  for (const m of meetings.forUser(props.employee.id)) {
+    const confirmed = m.skillMarks.filter((s) => s.confirmed).length
+    if (confirmed) bump(m.date, confirmed)
+    for (const p of m.problems) {
+      bump(m.date, -1)
+      if (p.resolved && p.resolvedAt) bump(p.resolvedAt, 1)
+    }
+  }
+
+  const dates = [...byDate.keys()].sort()
+  // Стартовая точка — нейтральный ноль перед первой встречей, чтобы график
+  // не начинался «с воздуха»: первая реальная встреча становится второй
+  // точкой графика, и уже видна динамика (рост/просадка), а не одна точка.
+  const points = [{ label: 'Старт', value: 0, delta: 0 }]
   let cumulative = 0
-  return list.map((m, i) => {
-    cumulative += m.skillMarks.filter((s) => s.confirmed).length
-    return { label: `${i + 1}`, value: cumulative }
-  })
+  for (const date of dates) {
+    const delta = byDate.get(date) ?? 0
+    cumulative += delta
+    points.push({ label: formatShortDate(date), value: cumulative, delta })
+  }
+  return points
 })
 </script>
 
@@ -65,8 +93,8 @@ const trendPoints = computed(() => {
     <AchievementBadges :employee="employee" />
 
     <BaseCard>
-      <p class="text-sm text-muted" style="margin-bottom: 10px">Динамика зачтённых навыков (по встречам)</p>
-      <TrendLine v-if="trendPoints.length" :points="trendPoints" />
+      <p class="text-sm text-muted" style="margin-bottom: 10px">Динамика успеваемости (навыки и проблемы по встречам)</p>
+      <TrendBars v-if="trendPoints.length > 1" :points="trendPoints" />
       <EmptyState v-else :icon="TrendingUp" title="Пока недостаточно данных" description="После первой встречи здесь появится график" />
     </BaseCard>
 

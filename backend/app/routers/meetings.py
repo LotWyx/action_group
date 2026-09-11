@@ -1,3 +1,4 @@
+import datetime
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -155,6 +156,7 @@ async def set_problem_resolved(
     if not problem or problem.meeting_id != meeting_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Проблема не найдена")
     problem.resolved = payload.resolved
+    problem.resolved_at = datetime.date.today() if payload.resolved else None
     await db.commit()
     await db.refresh(problem)
     return problem

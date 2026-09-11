@@ -120,3 +120,4 @@ class ProblemFlag(Base):
     skill_id: Mapped[str | None] = mapped_column(ForeignKey("skills.id", ondelete="SET NULL"), default=None)
     comment: Mapped[str] = mapped_column(Text)
     resolved: Mapped[bool] = mapped_column(Boolean, default=False)
+    resolved_at: Mapped[datetime.date | None] = mapped_column(Date, default=None)

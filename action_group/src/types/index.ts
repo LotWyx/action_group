@@ -73,6 +73,7 @@ export interface ProblemFlag {
   skillId: string | null
   comment: string
   resolved: boolean
+  resolvedAt: string | null // ISO date, set when resolved toggles true
 }
 
 export interface Meeting {

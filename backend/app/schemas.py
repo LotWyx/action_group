@@ -191,6 +191,7 @@ class ProblemFlagOut(CamelModel):
     skill_id: str | None
     comment: str
     resolved: bool
+    resolved_at: datetime.date | None
 
 
 class MeetingCreate(CamelModel):
