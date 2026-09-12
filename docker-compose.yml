@@ -25,6 +25,7 @@ services:
       VK_REMINDER_DAYS_AHEAD: ${VK_REMINDER_DAYS_AHEAD:-3}
       GIGACHAT_AUTH_KEY: ${GIGACHAT_AUTH_KEY:-}
       GIGACHAT_SCOPE: ${GIGACHAT_SCOPE:-GIGACHAT_API_PERS}
+      WHISPER_MODEL_SIZE: ${WHISPER_MODEL_SIZE:-tiny}
     depends_on:
       db:
         condition: service_healthy

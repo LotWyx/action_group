@@ -45,6 +45,7 @@ class Skill(Base):
     id: Mapped[str] = mapped_column(primary_key=True)
     name: Mapped[str]
     direction_id: Mapped[str] = mapped_column(ForeignKey("directions.id"))
+    description: Mapped[str | None] = mapped_column(Text, default=None)
 
 
 class PlanItem(Base):

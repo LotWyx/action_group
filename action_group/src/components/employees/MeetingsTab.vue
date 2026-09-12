@@ -16,7 +16,7 @@ import BaseModal from '@/components/ui/BaseModal.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseTextarea from '@/components/ui/BaseTextarea.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
-import { Calendar, Check, ChevronDown, ChevronUp, Link2, Paperclip, X } from '@lucide/vue'
+import { Calendar, Check, ChevronDown, ChevronUp, Link2, Paperclip, Pencil, X } from '@lucide/vue'
 
 const props = defineProps<{ employee: User; canManage: boolean }>()
 
@@ -75,6 +75,33 @@ async function cancelScheduled(id: string) {
   await scheduled.remove(id)
   toast.success('Встреча отменена')
 }
+
+const showRescheduleModal = ref(false)
+const rescheduleId = ref<string | null>(null)
+const rescheduleDate = ref('')
+const rescheduleNote = ref('')
+const rescheduling = ref(false)
+
+function openReschedule(id: string, currentDate: string, currentNote: string) {
+  rescheduleId.value = id
+  rescheduleDate.value = currentDate
+  rescheduleNote.value = currentNote
+  showRescheduleModal.value = true
+}
+
+async function submitReschedule() {
+  if (!rescheduleId.value) return
+  rescheduling.value = true
+  try {
+    await scheduled.update(rescheduleId.value, { scheduledDate: rescheduleDate.value, note: rescheduleNote.value.trim() })
+    toast.success('Встреча перенесена')
+    showRescheduleModal.value = false
+  } catch (e) {
+    toast.error(e instanceof Error ? e.message : 'Не удалось перенести встречу')
+  } finally {
+    rescheduling.value = false
+  }
+}
 </script>
 
 <template>
@@ -97,9 +124,14 @@ async function cancelScheduled(id: string) {
             <p v-if="s.note" class="text-sm text-muted">{{ s.note }}</p>
             <p class="text-sm text-faint">запланировал(а) {{ users.fullName(s.conductedById) }}</p>
           </div>
-          <button v-if="canManage" type="button" class="upcoming-item__cancel" title="Отменить" @click="cancelScheduled(s.id)">
-            <X :size="14" />
-          </button>
+          <div v-if="canManage" class="row gap-xs">
+            <button type="button" class="upcoming-item__cancel" title="Перенести" @click="openReschedule(s.id, s.scheduledDate, s.note)">
+              <Pencil :size="14" />
+            </button>
+            <button type="button" class="upcoming-item__cancel" title="Отменить" @click="cancelScheduled(s.id)">
+              <X :size="14" />
+            </button>
+          </div>
         </li>
       </ul>
     </BaseCard>
@@ -173,6 +205,17 @@ async function cancelScheduled(id: string) {
       <template #footer>
         <BaseButton variant="secondary" @click="showScheduleModal = false">Отмена</BaseButton>
         <BaseButton :loading="scheduling" @click="submitSchedule">Запланировать</BaseButton>
+      </template>
+    </BaseModal>
+
+    <BaseModal v-if="showRescheduleModal" title="Перенести встречу" @close="showRescheduleModal = false">
+      <div class="stack gap-md">
+        <BaseInput v-model="rescheduleDate" type="date" label="Новая дата встречи" required />
+        <BaseTextarea v-model="rescheduleNote" label="Заметка (необязательно)" :rows="3" placeholder="О чём поговорить" />
+      </div>
+      <template #footer>
+        <BaseButton variant="secondary" @click="showRescheduleModal = false">Отмена</BaseButton>
+        <BaseButton :loading="rescheduling" @click="submitReschedule">Сохранить</BaseButton>
       </template>
     </BaseModal>
   </div>

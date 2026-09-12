@@ -52,6 +52,39 @@ async def create_scheduled_meeting(
     return meeting
 
 
+@router.patch("/{scheduled_id}", response_model=schemas.ScheduledMeetingOut)
+async def reschedule_meeting(
+    scheduled_id: str,
+    payload: schemas.ScheduledMeetingUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    meeting = await db.get(models.ScheduledMeeting, scheduled_id)
+    if not meeting:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Запланированная встреча не найдена")
+    if not await permissions.can_manage(db, user, meeting.employee_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Недостаточно прав")
+
+    data = payload.model_dump(exclude_unset=True)
+    for field, value in data.items():
+        setattr(meeting, field, value)
+    await db.commit()
+    await db.refresh(meeting)
+
+    if "scheduled_date" in data:
+        employee = await db.get(models.User, meeting.employee_id)
+        if employee and employee.vk_user_id:
+            text = f"Встреча перенесена на {meeting.scheduled_date.isoformat()}."
+            if meeting.note:
+                text += f"\n{meeting.note}"
+            try:
+                await vk_notify.send_message(employee.vk_user_id, text)
+            except Exception:
+                logger.exception("Failed to send VK notification for rescheduled meeting %s", meeting.id)
+
+    return meeting
+
+
 @router.delete("/{scheduled_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def cancel_scheduled_meeting(
     scheduled_id: str, db: AsyncSession = Depends(get_db), user: models.User = Depends(get_current_user)

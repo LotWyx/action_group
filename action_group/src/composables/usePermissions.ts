@@ -40,6 +40,11 @@ export function usePermissions() {
     return managesEmployee(viewerId.value, targetId)
   }
 
+  /** Same as canManage, plus the plan's own owner — everyone can propose skills/dates on their own development plan. */
+  function canManagePlan(targetId: string): boolean {
+    return viewerId.value === targetId || canManage(targetId)
+  }
+
   const managedEmployeeIds = computed<Set<string>>(() => {
     if (!viewerId.value) return new Set()
     const ids = users.items.filter((u) => u.id !== viewerId.value && managesEmployee(viewerId.value!, u.id)).map((u) => u.id)
@@ -67,6 +72,7 @@ export function usePermissions() {
     isAdmin,
     canView,
     canManage,
+    canManagePlan,
     managesEmployee,
     managedEmployeeIds,
     visibleEmployeeIds,

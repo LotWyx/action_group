@@ -30,6 +30,13 @@ class Settings(BaseSettings):
     # is installed in the container's trust store.
     gigachat_verify_ssl: bool = False
 
+    # Local speech-to-text for the "meeting notes from audio" feature
+    # (faster-whisper, CPU-only int8). "tiny" is the deliberate choice here —
+    # the target server has 2GB RAM total, shared with Postgres and the app
+    # itself, so a bigger model isn't an option.
+    whisper_model_size: str = "tiny"
+    whisper_language: str = "ru"
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

@@ -12,6 +12,11 @@ export const scheduledMeetingsService = {
     return meeting
   },
 
+  async update(id: string, patch: { scheduledDate?: string; note?: string }): Promise<ScheduledMeeting> {
+    const { data } = await http.patch<ScheduledMeeting>(`/scheduled-meetings/${id}`, patch)
+    return data
+  },
+
   async remove(id: string): Promise<void> {
     await http.delete(`/scheduled-meetings/${id}`)
   },

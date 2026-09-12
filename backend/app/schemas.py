@@ -95,16 +95,19 @@ class SkillOut(CamelModel):
     id: str
     name: str
     direction_id: str
+    description: str | None
 
 
 class SkillCreate(CamelModel):
     name: str
     direction_id: str
+    description: str | None = None
 
 
 class SkillUpdate(CamelModel):
     name: str | None = None
     direction_id: str | None = None
+    description: str | None = None
 
 
 # --- Plan items ---------------------------------------------------------------
@@ -237,11 +240,21 @@ class ScheduledMeetingCreate(CamelModel):
     note: str = ""
 
 
+class ScheduledMeetingUpdate(CamelModel):
+    scheduled_date: datetime.date | None = None
+    note: str | None = None
+
+
 # --- AI analysis (GigaChat) ----------------------------------------------------
 
 
 class AiAnalysisOut(BaseModel):
     text: str
+
+
+class TranscribeMeetingOut(CamelModel):
+    transcript: str
+    summary_markdown: str
 
 
 # --- Auth -----------------------------------------------------------------------

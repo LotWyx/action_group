@@ -16,7 +16,10 @@ async def list_plans(db: AsyncSession = Depends(get_db), _user: models.User = De
     return [schemas.PlanItemOut.from_orm_item(item) for item in result.scalars().all()]
 
 
-async def _require_can_manage(db: AsyncSession, user: models.User, target_user_id: str) -> None:
+async def _require_plan_access(db: AsyncSession, user: models.User, target_user_id: str) -> None:
+    # A person always owns their own development plan, on top of whoever manages them.
+    if user.id == target_user_id:
+        return
     if not await permissions.can_manage(db, user, target_user_id):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Недостаточно прав для управления планом этого сотрудника")
 
@@ -27,7 +30,7 @@ async def add_skill_to_plan(
     db: AsyncSession = Depends(get_db),
     user: models.User = Depends(get_current_user),
 ):
-    await _require_can_manage(db, user, payload.user_id)
+    await _require_plan_access(db, user, payload.user_id)
     existing = await db.execute(
         select(models.PlanItem).where(
             models.PlanItem.user_id == payload.user_id, models.PlanItem.skill_id == payload.skill_id
@@ -55,7 +58,7 @@ async def update_planned_date(
     item = await db.get(models.PlanItem, item_id)
     if not item:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Пункт плана не найден")
-    await _require_can_manage(db, user, item.user_id)
+    await _require_plan_access(db, user, item.user_id)
     item.planned_date = payload.planned_date
     await db.commit()
     await db.refresh(item)
@@ -69,6 +72,6 @@ async def remove_plan_item(
     item = await db.get(models.PlanItem, item_id)
     if not item:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Пункт плана не найден")
-    await _require_can_manage(db, user, item.user_id)
+    await _require_plan_access(db, user, item.user_id)
     await db.delete(item)
     await db.commit()

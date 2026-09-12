@@ -21,7 +21,9 @@ async def list_skills(db: AsyncSession = Depends(get_db), _user: models.User = D
 async def create_skill(
     payload: schemas.SkillCreate, db: AsyncSession = Depends(get_db), _admin: models.User = Depends(require_admin)
 ):
-    skill = models.Skill(id=new_id("skill"), name=payload.name, direction_id=payload.direction_id)
+    skill = models.Skill(
+        id=new_id("skill"), name=payload.name, direction_id=payload.direction_id, description=payload.description
+    )
     db.add(skill)
     await db.commit()
     await db.refresh(skill)

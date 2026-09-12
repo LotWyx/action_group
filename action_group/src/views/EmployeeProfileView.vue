@@ -17,6 +17,7 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import { FileSpreadsheet, FileText, Lock } from '@lucide/vue'
 import { useFileDownload } from '@/composables/useFileDownload'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import OverviewTab from '@/components/employees/OverviewTab.vue'
 import PlanTab from '@/components/employees/PlanTab.vue'
 import MeetingsTab from '@/components/employees/MeetingsTab.vue'
 import ProblemsTab from '@/components/employees/ProblemsTab.vue'
@@ -51,6 +52,7 @@ onMounted(async () => {
 const employee = computed(() => users.byId.get(props.id) ?? null)
 const canView = computed(() => (employee.value ? perm.canView(employee.value.id) : false))
 const canManage = computed(() => (employee.value ? perm.canManage(employee.value.id) : false))
+const canManagePlan = computed(() => (employee.value ? perm.canManagePlan(employee.value.id) : false))
 
 const managerName = computed(() => {
   if (!employee.value?.departmentId) return null
@@ -66,8 +68,8 @@ const problemsCount = computed(() =>
   employee.value ? meetings.forUser(employee.value.id).flatMap((m) => m.problems).filter((p) => !p.resolved).length : 0,
 )
 
-const validTabs = ['plan', 'meetings', 'problems', 'analytics']
-const initialTab = typeof route.query.tab === 'string' && validTabs.includes(route.query.tab) ? route.query.tab : 'plan'
+const validTabs = ['overview', 'plan', 'meetings', 'problems', 'analytics']
+const initialTab = typeof route.query.tab === 'string' && validTabs.includes(route.query.tab) ? route.query.tab : 'overview'
 const activeTab = ref(initialTab)
 
 const { download } = useFileDownload()
@@ -116,6 +118,7 @@ function exportReport(format: 'xlsx' | 'pdf') {
     <BaseTabs
       v-model="activeTab"
       :tabs="[
+        { value: 'overview', label: 'Обзор' },
         { value: 'plan', label: 'План обучения' },
         { value: 'meetings', label: 'Встречи' },
         { value: 'problems', label: 'Проблемы', count: problemsCount || undefined },
@@ -123,7 +126,8 @@ function exportReport(format: 'xlsx' | 'pdf') {
       ]"
     />
 
-    <PlanTab v-if="activeTab === 'plan'" :employee="employee" :can-manage="canManage" />
+    <OverviewTab v-if="activeTab === 'overview'" :employee="employee" />
+    <PlanTab v-else-if="activeTab === 'plan'" :employee="employee" :can-manage="canManagePlan" />
     <MeetingsTab v-else-if="activeTab === 'meetings'" :employee="employee" :can-manage="canManage" />
     <ProblemsTab v-else-if="activeTab === 'problems'" :employee="employee" :can-manage="canManage" />
     <EmployeeAnalyticsTab v-else :employee="employee" />

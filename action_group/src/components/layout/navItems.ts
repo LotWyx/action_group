@@ -6,12 +6,14 @@ export interface NavItem {
   label: string
   icon: Component
   adminOnly?: boolean
+  /** Only meaningful for someone who manages at least one other employee (or is admin) — a lone contributor has nothing to see there. */
+  requiresSubordinates?: boolean
 }
 
 export const primaryNav: NavItem[] = [
   { to: '/', label: 'Главная', icon: Home },
-  { to: '/employees', label: 'Сотрудники', icon: Users },
-  { to: '/analytics', label: 'Аналитика', icon: BarChart3 },
+  { to: '/employees', label: 'Сотрудники', icon: Users, requiresSubordinates: true },
+  { to: '/analytics', label: 'Аналитика', icon: BarChart3, requiresSubordinates: true },
 ]
 
 export const adminNav: NavItem[] = [

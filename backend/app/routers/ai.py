@@ -1,12 +1,35 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+import logging
+import os
+import tempfile
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .. import gigachat, models, reports, schemas
+from .. import gigachat, models, permissions, reports, schemas, transcription
 from ..database import get_db
 from ..deps import get_current_user
 from .export import gather_department_report_data, gather_employee_report_data
 
 router = APIRouter(prefix="/ai", tags=["ai"])
+logger = logging.getLogger("ai")
+
+MAX_AUDIO_BYTES = 30 * 1024 * 1024
+
+TRANSCRIBE_SYSTEM_PROMPT = (
+    "Ты помогаешь руководителю оформить итоги PR-встречи (performance review) по "
+    "автоматической расшифровке аудиозаписи. Расшифровка может содержать ошибки "
+    "распознавания речи, слова-паразиты и незаконченные фразы — можешь поправить "
+    "формулировку по смыслу, но СТРОГО ЗАПРЕЩЕНО добавлять любые факты, имена, даты, "
+    "цифры, договорённости или выводы, которых нет в тексте расшифровки. Если фрагмент "
+    "неразборчив, оборван или смысл непонятен — не додумывай и не сглаживай, а либо "
+    "опусти его, либо оставь пометку «[неразборчиво]»; лучше пропустить деталь, чем "
+    "предположить её. Не обобщай и не делай выводов о результатах, оценках или прогрессе "
+    "сотрудника сверх того, что прямо сказано в тексте. Оформи результат как markdown-"
+    "конспект с заголовками (###) и списками, структурированный по темам обсуждения; "
+    "договорённости и следующие шаги вынеси отдельным пунктом, только если они явно "
+    "прозвучали. Пиши только сам конспект, без вступлений, пояснений и оценок от себя."
+)
 
 SYSTEM_PROMPT = (
     "Ты — ассистент руководителя разработки, помогаешь анализировать развитие сотрудников "
@@ -100,3 +123,48 @@ async def analyze_department(dept_id: str, db: AsyncSession = Depends(get_db), u
     if text is None:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Не удалось получить ответ от GigaChat")
     return schemas.AiAnalysisOut(text=text)
+
+
+@router.post("/meetings/transcribe", response_model=schemas.TranscribeMeetingOut)
+async def transcribe_meeting_audio(
+    employee_id: str = Form(..., alias="employeeId"),
+    audio: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    if not await permissions.can_manage(db, user, employee_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Недостаточно прав для этого сотрудника")
+    if not gigachat.is_configured():
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "GigaChat не настроен на сервере (GIGACHAT_AUTH_KEY)")
+
+    contents = await audio.read()
+    if not contents:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Пустой файл")
+    if len(contents) > MAX_AUDIO_BYTES:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, f"Аудио слишком большое (максимум {MAX_AUDIO_BYTES // (1024 * 1024)} МБ)"
+        )
+
+    suffix = os.path.splitext(audio.filename or "")[1] or ".audio"
+    with tempfile.NamedTemporaryFile(suffix=suffix) as tmp:
+        tmp.write(contents)
+        tmp.flush()
+        try:
+            # CPU-bound and can take a while on a small server — never run this
+            # directly in an async def, it would freeze every other request.
+            raw_text = await run_in_threadpool(transcription.transcribe, tmp.name)
+        except Exception:
+            logger.exception("Whisper transcription failed")
+            raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Не удалось распознать аудио")
+
+    if not raw_text:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "В аудио не распознано речи")
+
+    # Low temperature on purpose: this is transcription clean-up, not creative
+    # writing — the lower the temperature, the less the model tends to fill
+    # gaps with plausible-sounding but invented detail.
+    structured = await gigachat.complete(TRANSCRIBE_SYSTEM_PROMPT, raw_text, temperature=0.15)
+    if structured is None:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Не удалось получить ответ от GigaChat")
+
+    return schemas.TranscribeMeetingOut(transcript=raw_text, summary_markdown=structured)

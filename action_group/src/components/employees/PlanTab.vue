@@ -96,6 +96,9 @@ async function removeItem(id: string, skillName: string) {
         <li v-for="item in items" :key="item.id" class="plan-item">
           <div class="plan-item__main">
             <p class="plan-item__name">{{ skills.name(item.skillId) }}</p>
+            <p v-if="skills.byId.get(item.skillId)?.description" class="plan-item__description">
+              {{ skills.byId.get(item.skillId)?.description }}
+            </p>
             <p class="text-sm text-muted">
               Плановая дата:
               <template v-if="editingId === item.id">
@@ -129,6 +132,9 @@ async function removeItem(id: string, skillName: string) {
           placeholder="Выберите навык"
           :options="availableSkills.map((s) => ({ value: s.id, label: s.name }))"
         />
+        <p v-if="skills.byId.get(newSkillId)?.description" class="text-sm text-muted">
+          {{ skills.byId.get(newSkillId)?.description }}
+        </p>
         <BaseInput v-model="newPlannedDate" type="date" label="Плановая дата подтверждения" required />
       </div>
       <template #footer>
@@ -165,6 +171,13 @@ async function removeItem(id: string, skillName: string) {
 .plan-item__name {
   font-weight: 600;
   font-size: 14px;
+}
+
+.plan-item__description {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  color: var(--color-text-faint);
+  white-space: pre-wrap;
 }
 
 .plan-item__link {

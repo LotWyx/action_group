@@ -74,7 +74,7 @@ async def _get_access_token() -> str | None:
     return token
 
 
-async def complete(system_prompt: str, user_prompt: str) -> str | None:
+async def complete(system_prompt: str, user_prompt: str, temperature: float = 0.4) -> str | None:
     token = await _get_access_token()
     if not token:
         return None
@@ -90,7 +90,7 @@ async def complete(system_prompt: str, user_prompt: str) -> str | None:
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},
                     ],
-                    "temperature": 0.4,
+                    "temperature": temperature,
                 },
             )
             response.raise_for_status()

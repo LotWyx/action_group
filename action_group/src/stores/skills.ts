@@ -21,13 +21,13 @@ export const useSkillsStore = defineStore('skills', () => {
     }
   }
 
-  async function create(data: { name: string; directionId: string }) {
+  async function create(data: { name: string; directionId: string; description?: string | null }) {
     const skill = await skillsService.create(data)
     items.value.push(skill)
     return skill
   }
 
-  async function update(id: string, patch: Partial<Pick<Skill, 'name' | 'directionId'>>) {
+  async function update(id: string, patch: Partial<Pick<Skill, 'name' | 'directionId' | 'description'>>) {
     const skill = await skillsService.update(id, patch)
     const idx = items.value.findIndex((s) => s.id === id)
     if (idx !== -1) items.value[idx] = skill

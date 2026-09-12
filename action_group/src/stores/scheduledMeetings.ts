@@ -31,10 +31,17 @@ export const useScheduledMeetingsStore = defineStore('scheduledMeetings', () => 
     return meeting
   }
 
+  async function update(id: string, patch: { scheduledDate?: string; note?: string }) {
+    const meeting = await scheduledMeetingsService.update(id, patch)
+    const idx = items.value.findIndex((m) => m.id === id)
+    if (idx !== -1) items.value[idx] = meeting
+    return meeting
+  }
+
   async function remove(id: string) {
     await scheduledMeetingsService.remove(id)
     items.value = items.value.filter((m) => m.id !== id)
   }
 
-  return { items, loaded, loading, fetchAll, forUser, create, remove }
+  return { items, loaded, loading, fetchAll, forUser, create, update, remove }
 })

@@ -7,6 +7,7 @@ import { useToast } from '@/composables/useToast'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
+import BaseTextarea from '@/components/ui/BaseTextarea.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import { directionBadgeVariant } from '@/utils/directionBadge'
@@ -58,8 +59,10 @@ async function removeDirection(id: string, name: string) {
 
 // Skills -------------------------------------------------------------
 const newSkillName = ref<Record<string, string>>({})
+const newSkillDescription = ref<Record<string, string>>({})
 const editingSkillId = ref<string | null>(null)
 const editingSkillName = ref('')
+const editingSkillDescription = ref('')
 
 function skillsFor(directionId: string) {
   return skills.forDirection(directionId)
@@ -68,21 +71,26 @@ function skillsFor(directionId: string) {
 async function addSkill(directionId: string) {
   const name = (newSkillName.value[directionId] ?? '').trim()
   if (!name) return
-  await skills.create({ name, directionId })
+  await skills.create({ name, directionId, description: (newSkillDescription.value[directionId] ?? '').trim() || null })
   newSkillName.value[directionId] = ''
+  newSkillDescription.value[directionId] = ''
   toast.success('Навык добавлен')
 }
 
-function startEditSkill(id: string, name: string) {
+function startEditSkill(id: string, name: string, description: string | null) {
   editingSkillId.value = id
   editingSkillName.value = name
+  editingSkillDescription.value = description ?? ''
 }
 
 async function saveSkill() {
   if (!editingSkillId.value) return
-  await skills.update(editingSkillId.value, { name: editingSkillName.value.trim() })
+  await skills.update(editingSkillId.value, {
+    name: editingSkillName.value.trim(),
+    description: editingSkillDescription.value.trim() || null,
+  })
   editingSkillId.value = null
-  toast.success('Навык переименован')
+  toast.success('Навык обновлён')
 }
 
 async function removeSkill(id: string, name: string) {
@@ -141,13 +149,26 @@ const ready = computed(() => directions.loaded && skills.loaded)
         <ul v-else class="skill-list">
           <li v-for="s in skillsFor(dir.id)" :key="s.id">
             <template v-if="editingSkillId === s.id">
-              <input v-model="editingSkillName" class="inline-edit inline-edit--full" @keyup.enter="saveSkill" />
-              <button type="button" class="link-btn" @click="saveSkill">сохранить</button>
-              <button type="button" class="link-btn" @click="editingSkillId = null">отмена</button>
+              <div class="skill-edit">
+                <input v-model="editingSkillName" class="inline-edit inline-edit--full" placeholder="Название навыка" @keyup.enter="saveSkill" />
+                <textarea
+                  v-model="editingSkillDescription"
+                  class="inline-edit inline-edit--full inline-edit--area"
+                  rows="2"
+                  placeholder="Описание / DoD / ссылка на материалы (необязательно)"
+                />
+                <div class="row gap-sm">
+                  <button type="button" class="link-btn" @click="saveSkill">сохранить</button>
+                  <button type="button" class="link-btn" @click="editingSkillId = null">отмена</button>
+                </div>
+              </div>
             </template>
             <template v-else>
-              <span class="skill-list__name">{{ s.name }}</span>
-              <button type="button" class="link-btn" @click="startEditSkill(s.id, s.name)">переименовать</button>
+              <div class="skill-list__main">
+                <span class="skill-list__name">{{ s.name }}</span>
+                <p v-if="s.description" class="skill-list__description">{{ s.description }}</p>
+              </div>
+              <button type="button" class="link-btn" @click="startEditSkill(s.id, s.name, s.description)">редактировать</button>
               <button type="button" class="link-btn link-btn--danger" @click="removeSkill(s.id, s.name)">удалить</button>
             </template>
           </li>
@@ -155,6 +176,11 @@ const ready = computed(() => directions.loaded && skills.loaded)
 
         <div class="skill-add">
           <BaseInput v-model="newSkillName[dir.id]" placeholder="Новый навык" @keyup.enter="addSkill(dir.id)" />
+          <BaseTextarea
+            v-model="newSkillDescription[dir.id]"
+            :rows="2"
+            placeholder="Описание / DoD / ссылка на материалы (необязательно)"
+          />
           <BaseButton size="sm" variant="secondary" @click="addSkill(dir.id)">+ Добавить</BaseButton>
         </div>
       </BaseCard>
@@ -185,7 +211,7 @@ const ready = computed(() => directions.loaded && skills.loaded)
 
 .skill-list li {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   padding: 8px 0;
   border-bottom: 1px solid var(--color-border);
@@ -194,15 +220,49 @@ const ready = computed(() => directions.loaded && skills.loaded)
   border-bottom: none;
 }
 
-.skill-list__name {
+.skill-list__main {
   flex: 1;
+  min-width: 0;
+}
+
+.skill-list__name {
   font-size: 13.5px;
+}
+
+.skill-list__description {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: var(--color-text-faint);
+  white-space: pre-wrap;
+}
+
+.skill-edit {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.inline-edit--area {
+  width: 100%;
+  resize: vertical;
+  font-family: inherit;
 }
 
 .skill-add {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 12px 16px 16px;
+}
+.skill-add > :first-child {
+  flex: 1;
+  min-width: 160px;
+}
+.skill-add > :nth-child(2) {
+  flex: 2;
+  min-width: 200px;
 }
 
 .link-btn {

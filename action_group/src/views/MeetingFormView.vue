@@ -8,7 +8,9 @@ import { usePlansStore } from '@/stores/plans'
 import { useAuthStore } from '@/stores/auth'
 import { usePermissions } from '@/composables/usePermissions'
 import { useToast } from '@/composables/useToast'
+import { useConfirm } from '@/composables/useConfirm'
 import { renderMarkdown } from '@/composables/useMarkdown'
+import { aiService } from '@/api/aiService'
 import type { AttachmentType } from '@/types'
 import BaseCard from '@/components/ui/BaseCard.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -17,7 +19,7 @@ import BaseTextarea from '@/components/ui/BaseTextarea.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import UserAvatar from '@/components/ui/UserAvatar.vue'
-import { Lock, X } from '@lucide/vue'
+import { Lock, Mic, X } from '@lucide/vue'
 
 const props = defineProps<{ id: string }>()
 
@@ -28,6 +30,7 @@ const plans = usePlansStore()
 const auth = useAuthStore()
 const perm = usePermissions()
 const toast = useToast()
+const { confirm } = useConfirm()
 const router = useRouter()
 
 const ready = ref(false)
@@ -44,6 +47,37 @@ const date = ref(new Date().toISOString().slice(0, 10))
 const summary = ref('')
 const showPreview = ref(false)
 const submitting = ref(false)
+
+const audioFile = ref<File | null>(null)
+const transcribing = ref(false)
+const transcript = ref('')
+const showTranscript = ref(false)
+
+function onAudioChosen(e: Event) {
+  audioFile.value = (e.target as HTMLInputElement).files?.[0] ?? null
+}
+
+async function transcribeAudio() {
+  if (!employee.value || !audioFile.value) return
+  if (summary.value.trim()) {
+    const ok = await confirm('Итоги встречи уже заполнены — заменить их расшифровкой аудио?', {
+      confirmLabel: 'Заменить',
+    })
+    if (!ok) return
+  }
+  transcribing.value = true
+  try {
+    const result = await aiService.transcribeMeeting(employee.value.id, audioFile.value)
+    summary.value = result.summaryMarkdown
+    transcript.value = result.transcript
+    showTranscript.value = false
+    toast.success('Итоги встречи заполнены по аудио — проверьте и при необходимости поправьте')
+  } catch (e) {
+    toast.error(e instanceof Error ? e.message : 'Не удалось распознать аудио')
+  } finally {
+    transcribing.value = false
+  }
+}
 
 interface AttachmentRow {
   type: AttachmentType
@@ -154,6 +188,22 @@ async function submit() {
     <BaseCard class="stack gap-md">
       <BaseInput v-model="date" type="date" label="Дата встречи" required />
 
+      <div class="audio-fill">
+        <Mic :size="16" class="audio-fill__icon" />
+        <div class="audio-fill__body">
+          <p class="audio-fill__title">Заполнить итоги по аудиозаписи</p>
+          <p class="text-sm text-muted">
+            Whisper распознает речь, GigaChat оформит конспект. На слабом сервере может занять пару минут — дождитесь ответа.
+          </p>
+          <div class="row gap-sm wrap" style="margin-top: 8px">
+            <input type="file" accept="audio/*" class="file-input" @change="onAudioChosen" />
+            <BaseButton size="sm" variant="secondary" type="button" :disabled="!audioFile" :loading="transcribing" @click="transcribeAudio">
+              Расшифровать и заполнить
+            </BaseButton>
+          </div>
+        </div>
+      </div>
+
       <div class="stack gap-xs">
         <div class="row" style="justify-content: space-between">
           <span class="field__label">Итоги встречи (Markdown)</span>
@@ -163,6 +213,13 @@ async function submit() {
         </div>
         <div v-if="showPreview" class="markdown-body preview-box" v-html="renderMarkdown(summary)" />
         <BaseTextarea v-else v-model="summary" :rows="7" placeholder="### Что обсудили&#10;- пункт 1&#10;- пункт 2" />
+      </div>
+
+      <div v-if="transcript" class="stack gap-xs">
+        <button type="button" class="link-btn" @click="showTranscript = !showTranscript">
+          {{ showTranscript ? 'Скрыть' : 'Показать' }} исходную расшифровку аудио
+        </button>
+        <p v-if="showTranscript" class="text-sm text-muted transcript-box">{{ transcript }}</p>
       </div>
     </BaseCard>
 
@@ -260,6 +317,41 @@ async function submit() {
   border-radius: var(--radius-md);
   padding: 12px;
   min-height: 140px;
+}
+
+.audio-fill {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+}
+
+.audio-fill__icon {
+  color: var(--color-primary);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.audio-fill__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.audio-fill__title {
+  font-weight: 700;
+  font-size: 13.5px;
+  margin-bottom: 2px;
+}
+
+.transcript-box {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  white-space: pre-wrap;
+  max-height: 200px;
+  overflow-y: auto;
 }
 
 .mark-row,
